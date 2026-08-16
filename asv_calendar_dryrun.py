@@ -80,8 +80,7 @@ def build_message(selected_events, next_monday):
 
     for lv_name, en_abbr in DATE_MAP:
         date_str = (next_monday + timedelta(days=DATE_MAP.index((lv_name, en_abbr)))).strftime("%d.%m.")
-        day_num = (next_monday + timedelta(days=DATE_MAP.index((lv_name, en_abbr)))).day
-        date_key = f"Aug {day_num}"
+        date_key = f"{en_abbr} {next_monday.strftime('%b %d').replace(' 0', ' ')}"
         events = selected_events.get(date_key, ["Nav svarīgu ekonomisko datu"])
 
         lines.append(f"📅 {lv_name}, {date_str}")
@@ -111,34 +110,6 @@ def self_check(text):
             errors.append(f"Tenglish fragments: {artifact}")
     return errors
 
-def send_telegram(text):
-    url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
-    payload = {
-        'chat_id': TELEGRAM_CHAT_ID,
-        'text': text,
-        'disable_web_page_preview': True,
-    }
-    resp = requests.post(url, json=payload, timeout=15)
-    resp.raise_for_status()
-    result = resp.json()
-    if result.get('ok'):
-        print(f'Sent message_id={result["result"]["message_id"]}')
-    else:
-        print(f'Kļūda sūtot ziņu: {result}')
-        exit(1)
-
-def send_alert(text):
-    if not TELEGRAM_BOT_TOKEN or not TELEGRAM_CHAT_ID:
-        print(f"ALERT: {text}")
-        return
-    url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
-    payload = {
-        'chat_id': TELEGRAM_CHAT_ID,
-        'text': f"⚠️ ASV kalendāra brīdinājums: {text}",
-        'disable_web_page_preview': True,
-    }
-    requests.post(url, json=payload, timeout=15)
-
 def main():
     today = datetime.now()
     days_until_monday = (7 - today.weekday()) % 7
@@ -155,7 +126,7 @@ def main():
         print(f"Parsed USD events: {total_us}")
 
         if total_us < 3:
-            send_alert(f"Pārāk maz ASV notikumu atrasti: {total_us}. Iespējams, avots ir mainījies.")
+            print("ALERT: Pārāk maz ASV notikumu atrasti")
             exit(1)
 
         selected = select_top_events(us_events)
@@ -163,7 +134,7 @@ def main():
 
         errors = self_check(message)
         if errors:
-            send_alert(f"Self-check kļūdas: {errors}")
+            print(f"ALERT: Self-check kļūdas: {errors}")
             exit(1)
 
         output = {
@@ -176,12 +147,8 @@ def main():
         print(json.dumps(output, indent=2, ensure_ascii=False))
         print("✅ Self-check passed")
 
-        if os.environ.get("SEND_TELEGRAM", "0") == "1":
-            send_telegram(message)
-            print("✅ Ziņa nosūtīta veiksmīgi")
-
     except Exception as e:
-        send_alert(f"Kļūda: {e}")
+        print(f"ALERT: Kļūda: {e}")
         exit(1)
 
 if __name__ == '__main__':
