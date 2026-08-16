@@ -9,6 +9,19 @@ import requests
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
+DESCRIPTIONS = {
+    "Empire State Manufacturing Index": "Rūpniecības aktivitātes rādītājs Ņujorkas reģionam. Indekss zem 0 nozīmē kontrakciju, virs 0 — ekspansiju.",
+    "NAHB Housing Market Index": "Nacionālais mājokļu būvniecības spēlētāju konfidences rādītājs. Zemāks par 50 nozīmē, ka vairāk būvniecības spēlētāju uzskata tirgu par sliktu.",
+    "Building Permits": "Jaunu būvju atļauju skaits. Norāda uz nākotnes būvniecības aktivitāti un mājokļu tirgus attīstību.",
+    "ADP Weekly Employment Change": "Privātais nodarbinātības rādītājs. Augstāks skaits nozīmē, ka privātajā sektorā radās vairāk darbavietu.",
+    "FOMC Meeting Minutes": "Federālās rezerves sanāksmes protokols. Nodrošina skaidrību par nākotnes monetāro politiku un procentu likmju izmaiņām.",
+    "Crude Oil Inventories": "Naftas krājumu izmaiņas ASV. Pieaugums var spiedēt cenas uz leju, samazinājums — uz augšu.",
+    "Unemployment Claims": "Bezdarba pieteikumu skaits. Augstāks skaits norāda uz sliktu darba tirgu, zems — uz stabilu nodarbinātību.",
+    "Philly Fed Manufacturing Index": "Rūpniecības aktivitātes rādītājs Filadelfijas reģionam. Virs 0 nozīmē ekspansiju, zemāk par 0 — kontrakciju.",
+    "Flash Manufacturing PMI": "Iekšējā rūpniecības PMI provizoriskais rādītājs. Virs 50 nozīmē ekspansiju, zem 50 — kontrakciju.",
+    "Flash Services PMI": "Iekšējais pakalpojumu sektora PMI provizoriskais rādītājs. Virs 50 nozīmē ekspansiju, zem 50 — kontrakciju.",
+}
+
 def fetch_forexfactory_calendar():
     url = "https://r.jina.ai/https://www.forexfactory.com/calendar"
     req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
@@ -86,7 +99,11 @@ def build_message(selected_events, next_monday):
 
         lines.append(f"📅 {lv_name}, {date_str}")
         for ev in events:
-            lines.append(f"✅ {ev}")
+            desc = DESCRIPTIONS.get(ev)
+            if desc:
+                lines.append(f"✅ {ev} — {desc}")
+            else:
+                lines.append(f"✅ {ev}")
         lines.append("")
 
     lines.append("---")
@@ -112,10 +129,6 @@ def self_check(text):
     return errors
 
 def send_telegram(text):
-    print(f"DEBUG: TOKEN present: {bool(TELEGRAM_BOT_TOKEN)}, CHAT_ID present: {bool(TELEGRAM_CHAT_ID)}")
-    print(f"DEBUG: TOKEN prefix: {TELEGRAM_BOT_TOKEN[:10] if TELEGRAM_BOT_TOKEN else 'None'}...")
-    print(f"DEBUG: CHAT_ID: {TELEGRAM_CHAT_ID}")
-    
     url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendMessage'
     payload = {
         'chat_id': TELEGRAM_CHAT_ID,
@@ -123,8 +136,6 @@ def send_telegram(text):
         'disable_web_page_preview': True,
     }
     resp = requests.post(url, json=payload, timeout=15)
-    print(f"DEBUG: Telegram response status: {resp.status_code}")
-    print(f"DEBUG: Telegram response: {resp.text[:500]}")
     resp.raise_for_status()
     result = resp.json()
     if result.get('ok'):
@@ -172,8 +183,19 @@ def main():
             send_alert(f"Self-check kļūdas: {errors}")
             exit(1)
 
-        send_telegram(message)
-        print("✅ Ziņa nosūtīta veiksmīgi")
+        output = {
+            "next_monday": next_monday.strftime("%Y-%m-%d"),
+            "us_events_count": total_us,
+            "selected_events": selected,
+            "message": message,
+            "self_check_errors": errors,
+        }
+        print(json.dumps(output, indent=2, ensure_ascii=False))
+        print("✅ Self-check passed")
+
+        if os.environ.get("SEND_TELEGRAM", "0") == "1":
+            send_telegram(message)
+            print("✅ Ziņa nosūtīta veiksmīgi")
 
     except Exception as e:
         send_alert(f"Kļūda: {e}")
