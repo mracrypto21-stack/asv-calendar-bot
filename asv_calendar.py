@@ -6,7 +6,6 @@ import ssl
 from datetime import datetime, timedelta
 import requests
 
-# GitHub Actions / local run
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
@@ -77,21 +76,12 @@ DATE_MAP = [
 ]
 
 def build_message(selected_events, next_monday):
-    dates = {
-        "Mon": (next_monday + timedelta(days=0)).strftime("%d.%m."),
-        "Tue": (next_monday + timedelta(days=1)).strftime("%d.%m."),
-        "Wed": (next_monday + timedelta(days=2)).strftime("%d.%m."),
-        "Thu": (next_monday + timedelta(days=3)).strftime("%d.%m."),
-        "Fri": (next_monday + timedelta(days=4)).strftime("%d.%m."),
-    }
-
     lines = ["📊 Nākamās nedēļas ASV ekonomikas dati", ""]
 
     for lv_name, en_abbr in DATE_MAP:
-        date_str = dates.get(en_abbr, "")
-        events = selected_events.get(en_abbr + " " + date_str.split('.')[0].lstrip('0'), [])
-        if not events:
-            events = selected_events.get(en_abbr, ["Nav svarīgu ekonomisko datu"])
+        date_str = (next_monday + timedelta(days=DATE_MAP.index((lv_name, en_abbr)))).strftime("%d.%m.")
+        date_key = f"{en_abbr} {next_monday.strftime('%b %d').replace(' 0', ' ')}"
+        events = selected_events.get(date_key, ["Nav svarīgu ekonomisko datu"])
 
         lines.append(f"📅 {lv_name}, {date_str}")
         for ev in events:
