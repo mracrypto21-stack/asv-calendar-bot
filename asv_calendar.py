@@ -9,17 +9,33 @@ import requests
 TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
 TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
 
-DESCRIPTIONS = {
-    "Empire State Manufacturing Index": "Rūpniecības aktivitātes rādītājs Ņujorkas reģionam. Indekss zem 0 nozīmē kontrakciju, virs 0 — ekspansiju.",
-    "NAHB Housing Market Index": "Nacionālais mājokļu būvniecības spēlētāju konfidences rādītājs. Zemāks par 50 nozīmē, ka vairāk būvniecības spēlētāju uzskata tirgu par sliktu.",
-    "Building Permits": "Jaunu būvju atļauju skaits. Norāda uz nākotnes būvniecības aktivitāti un mājokļu tirgus attīstību.",
-    "ADP Weekly Employment Change": "Privātais nodarbinātības rādītājs. Augstāks skaits nozīmē, ka privātajā sektorā radās vairāk darbavietu.",
-    "FOMC Meeting Minutes": "Federālās rezerves sanāksmes protokols. Nodrošina skaidrību par nākotnes monetāro politiku un procentu likmju izmaiņām.",
-    "Crude Oil Inventories": "Naftas krājumu izmaiņas ASV. Pieaugums var spiedēt cenas uz leju, samazinājums — uz augšu.",
-    "Unemployment Claims": "Bezdarba pieteikumu skaits. Augstāks skaits norāda uz sliktu darba tirgu, zems — uz stabilu nodarbinātību.",
-    "Philly Fed Manufacturing Index": "Rūpniecības aktivitātes rādītājs Filadelfijas reģionam. Virs 0 nozīmē ekspansiju, zemāk par 0 — kontrakciju.",
-    "Flash Manufacturing PMI": "Iekšējā rūpniecības PMI provizoriskais rādītājs. Virs 50 nozīmē ekspansiju, zem 50 — kontrakciju.",
-    "Flash Services PMI": "Iekšējais pakalpojumu sektora PMI provizoriskais rādītājs. Virs 50 nozīmē ekspansiju, zem 50 — kontrakciju.",
+DESCRIPTIONS = {}
+IMPORTANT_KEYWORDS = [
+    'FOMC', 'CPI', 'PMI', 'NFP', 'Employment', 'GDP', 'Fed',
+    'Empire State', 'Housing', 'Permits', 'Philly Fed', 'Jobless',
+    'Claims', 'Unemployment', 'Retail Sales', 'Durable Goods',
+    'Consumer Confidence', 'Pending Home Sales', 'Building'
+]
+FALLBACK_DESCRIPTIONS = {
+    'FOMC': 'Federālās rezerves diskusijas par procentu likmēm.',
+    'CPI': 'Inflatijas rādītājs.',
+    'PMI': 'Rūpniecības/pakalpojumu sektora aktivitātes rādītājs.',
+    'NFP': 'Nodarbinātības izmaiņas nacionālajā mērogā.',
+    'Employment': 'Darba tirgus rādītājs.',
+    'GDP': 'Iekšzemes kopprodukta izmaiņas.',
+    'Fed': 'Monetārās politikas signāli.',
+    'Empire State': 'Rūpniecības aktivitātes rādītājs Ņujorkas reģionam.',
+    'Housing': 'Mājokļu tirgus rādītāji.',
+    'Permits': 'Jaunu būvju atļauju skaits.',
+    'Philly Fed': 'Rūpniecības aktivitātes rādītājs Filadelfijas reģionam.',
+    'Jobless': 'Bezdarba pieteikumu skaits.',
+    'Claims': 'Bezdarba pieteikumu skaits.',
+    'Unemployment': 'Bezdarba pieteikumu skaits.',
+    'Retail Sales': 'Pārdošanas apjomu izmaiņas.',
+    'Durable Goods': 'Ilgstošo preču pasūtījumu izmaiņas.',
+    'Consumer Confidence': 'Patērētāju konfidences rādītājs.',
+    'Pending Home Sales': 'Nepabeigtu mājokļu pārdošanas līgumu skaits.',
+    'Building': 'Būvniecības aktivitātes rādītāji.',
 }
 
 def fetch_forexfactory_calendar():
@@ -35,7 +51,7 @@ def parse_us_events(text):
     current_date = None
 
     for line in lines:
-        date_match = re.search(r'(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(Aug\s+\d+)', line)
+        date_match = re.search(r'(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+([A-Za-z]+\s+\d+)', line)
         if date_match:
             current_date = date_match.group(2)
             continue
@@ -94,12 +110,16 @@ def build_message(selected_events, next_monday):
     for lv_name, en_abbr in DATE_MAP:
         date_str = (next_monday + timedelta(days=DATE_MAP.index((lv_name, en_abbr)))).strftime("%d.%m.")
         day_num = (next_monday + timedelta(days=DATE_MAP.index((lv_name, en_abbr)))).day
-        date_key = f"Aug {day_num}"
+        date_key = f"{next_monday.strftime('%b')} {day_num}"
         events = selected_events.get(date_key, ["Nav svarīgu ekonomisko datu"])
 
         lines.append(f"📅 {lv_name}, {date_str}")
         for ev in events:
-            desc = DESCRIPTIONS.get(ev)
+            desc = None
+            for kw in IMPORTANT_KEYWORDS:
+                if kw.lower() in ev.lower():
+                    desc = FALLBACK_DESCRIPTIONS.get(kw)
+                    break
             if desc:
                 lines.append(f"✅ {ev} — {desc}")
             else:
@@ -108,6 +128,7 @@ def build_message(selected_events, next_monday):
 
     lines.append("---")
     lines.append("Šīs nedēļas svarīgie makroekonomikas dati var ievērojami ietekmēt tirgus kustības.")
+    lines.append('🌐 <a href="@url:`https://kriptonr1.xyz`">Kripto Nr.1 ekosistēma</a>')
     return "\n".join(lines)
 
 def self_check(text):
@@ -116,7 +137,7 @@ def self_check(text):
         errors.append(f"Nav 5 dienu ierakstu: {text.count('📅')}")
     for line in text.split('\n'):
         line = line.strip()
-        if line and not line.startswith(('📅', '✅', '📊', '---')):
+        if line and not line.startswith(('📅', '✅', '📊', '---', '🌐')):
             if line.endswith(('Sāk', 'un ', 'par ', 'uz ', 'no ', 'un')):
                 errors.append(f"Iespējama nepilnīga teikuma: {line}")
     words = text.lower().split()
@@ -133,6 +154,7 @@ def send_telegram(text):
     payload = {
         'chat_id': TELEGRAM_CHAT_ID,
         'text': text,
+        'parse_mode': 'HTML',
         'disable_web_page_preview': True,
     }
     resp = requests.post(url, json=payload, timeout=15)
