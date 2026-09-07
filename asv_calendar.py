@@ -6,36 +6,83 @@ import ssl
 from datetime import datetime, timedelta
 import requests
 
-TELEGRAM_BOT_TOKEN = os.environ.get("TELEGRAM_BOT_TOKEN", "")
-TELEGRAM_CHAT_ID = os.environ.get("TELEGRAM_CHAT_ID", "")
+def load_token() -> str:
+    token = os.environ.get("TELEGRAM_BOT_TOKEN")
+    if not token:
+        with open("/root/.hermes/.env", "r", encoding="utf-8") as f:
+            for line in f:
+                if line.strip().startswith("TELEGRAM_BOT_TOKEN="):
+                    token = line.strip().split("=", 1)[1].strip().strip("'").strip('"')
+                    break
+    if not token:
+        raise RuntimeError("TELEGRAM_BOT_TOKEN nav atrasts .env failā")
+    return token
 
-DESCRIPTIONS = {}
-IMPORTANT_KEYWORDS = [
-    'FOMC', 'CPI', 'PMI', 'NFP', 'Employment', 'GDP', 'Fed',
-    'Empire State', 'Housing', 'Permits', 'Philly Fed', 'Jobless',
-    'Claims', 'Unemployment', 'Retail Sales', 'Durable Goods',
-    'Consumer Confidence', 'Pending Home Sales', 'Building'
-]
-FALLBACK_DESCRIPTIONS = {
-    'FOMC': 'Federālās rezerves diskusijas par procentu likmēm.',
-    'CPI': 'Inflatijas rādītājs.',
-    'PMI': 'Rūpniecības/pakalpojumu sektora aktivitātes rādītājs.',
-    'NFP': 'Nodarbinātības izmaiņas nacionālajā mērogā.',
-    'Employment': 'Darba tirgus rādītājs.',
-    'GDP': 'Iekšzemes kopprodukta izmaiņas.',
-    'Fed': 'Monetārās politikas signāli.',
-    'Empire State': 'Rūpniecības aktivitātes rādītājs Ņujorkas reģionam.',
-    'Housing': 'Mājokļu tirgus rādītāji.',
-    'Permits': 'Jaunu būvju atļauju skaits.',
-    'Philly Fed': 'Rūpniecības aktivitātes rādītājs Filadelfijas reģionam.',
-    'Jobless': 'Bezdarba pieteikumu skaits.',
-    'Claims': 'Bezdarba pieteikumu skaits.',
-    'Unemployment': 'Bezdarba pieteikumu skaits.',
-    'Retail Sales': 'Pārdošanas apjomu izmaiņas.',
-    'Durable Goods': 'Ilgstošo preču pasūtījumu izmaiņas.',
-    'Consumer Confidence': 'Patērētāju konfidences rādītājs.',
-    'Pending Home Sales': 'Nepabeigtu mājokļu pārdošanas līgumu skaits.',
-    'Building': 'Būvniecības aktivitātes rādītāji.',
+TELEGRAM_BOT_TOKEN = load_token()
+TELEGRAM_CHAT_ID = "1494676964"
+
+DESCRIPTIONS = {
+    # Rūpniecība un biznesa indeksi
+    "Empire State Manufacturing Index": "Ņujorkas reģiona rūpniecības aktivitātes indekss. Vērtība virs 0 norāda uz nozares izaugsmi, bet zem 0 — uz kontrakciju; tas bieži ir pirmais mēneša signāls par ražošanas sektora stāvokli.",
+    "Philly Fed Manufacturing Index": "Filadelfijas reģiona ražošanas sektora indekss. Vērtība virs 0 nozīmē aktivitātes pieaugumu, zem 0 — sarukumu; indekss kalpo kā visas ASV rūpniecības veselības barometrs.",
+    "Chicago PMI": "Čikāgas reģiona biznesa vides indekss, kas kalpo kā indikators visas valsts rūpniecībai. Vērtība virs 50 nozīmē izaugsmi, zem 50 — sarukumu.",
+    "ISM Manufacturing PMI": "Svarīgākais ASV rūpniecības indekss. Vērtība virs 50 nozīmē, ka nozare paplašinās, zem 50 — ka sarūk; spēcīgs rādītājs parasti atbalsta dolāru.",
+    "ISM Services PMI": "Pakalpojumu sektora aktivitātes rādītājs, kas veido lielāko daļu no ASV ekonomikas. Virs 50 nozīmē izaugsmi, zem 50 — sarukumu.",
+    "S&P Global Manufacturing PMI": "Privātā sektora ražošanas aktivitātes indekss. Virs 50 nozīmē ekspansiju, zem 50 — kontrakciju; tā ir pirmā mēneša signāls par rūpniecību.",
+    "S&P Global Services PMI": "Pakalpojumu sektora aktivitātes indekss no privātā sektora skata. Virs 50 nozīmē ekspansiju, zem 50 — kontrakciju.",
+    "Final Manufacturing PMI": "Precizētais rūpniecības aktivitātes indekss. Virs 50 nozīmē izaugsmi, zem 50 — sarukumu.",
+    "Final Services PMI": "Precizētais pakalpojumu sektora aktivitātes indekss. Virs 50 nozīmē izaugsmi, zem 50 — sarukumu.",
+    "Flash Manufacturing PMI": "Rūpniecības sektora provizoriskais aktivitātes vērtējums. Virs 50 nozīmē ekspansiju, zem 50 — kontrakciju.",
+    "Flash Services PMI": "Pakalpojumu sektora provizoriskais aktivitātes vērtējums. Virs 50 nozīmē ekspansiju, zem 50 — kontrakciju.",
+    "Factory Orders": "Rūpniecības pasūtījumu apjoma izmaiņas, kas raksturo pieprasījumu ražošanas sektorā. Pieaugums liecina par ekonomikas izaugsmi un var stiprināt dolāru.",
+    "Durable Goods Orders": "Ilgtermiņa preču pasūtījumi. Būtisks pieaugums norāda uz stabilu pieprasījumu un investoru pārliecību par ekonomikas virzību.",
+    "Industrial Production": "Rūpniecības produkcijas apjoma izmaiņas. Pieaugums liecina par ražošanas sektora izaugsmi un ekonomikas tempu.",
+
+    # Nodarbinātība un darba tirgus
+    "Non-Farm Employment Change": "Jauno darba vietu skaits ārpus lauksaimniecības — ietekmīgākais darba tirgus rādītājs. Spēcīgs pieaugums stiprina dolāru un dod Fed iespēju noturēt augstākas likmes.",
+    "ADP Non-Farm Employment Change": "Privātā sektora nodarbinātības ziņojums. Analītiķi to uztver kā priekšskatījumu oficiālajam NFP skaitlim.",
+    "ADP Weekly Employment Change": "Privātā sektora iknedēļas nodarbinātības izmaiņas. Rāda darba tirgus tempu nedēļas griezumā un palīdz prognozēt oficiālos datus.",
+    "Unemployment Rate": "ASV bezdarba līmenis. Zemāks par gaidīto liecina par stipru darba tirgu un var mudināt Fed saglabāt augstākas procentu likmes.",
+    "Unemployment Claims": "Iknedēļas jauno bezdarbnieku pieteikumu skaits. Pieteikumi zem aptuveni 250 000 nozīmē stabilu darba tirgu, savukārt straujš pieaugums var liecināt par tā vājināšanos.",
+    "Initial Jobless Claims": "Iknedēļas jauno bezdarbnieku pieteikumu skaits. Pieteikumi zem aptuveni 250 000 nozīmē stabilu darba tirgu, savukārt straujš pieaugums var liecināt par tā vājināšanos.",
+    "Continuing Jobless Claims": "Ilgstoši bezdarbnieku pieteikumi. Pieaugums liecina, ka bezdarbniekiem arvien grūtāk atrast darbu.",
+
+    # Mājokļu tirgus
+    "NAHB Housing Market Index": "Būvnieku konfidences indekss. Vērtība zem 50 norāda uz pesimistisku būvniecības nozares vērtējumu, virs 50 — uz optimistisku.",
+    "Building Permits": "Izsniegto būvatļauju skaits. Apjoms virs aptuveni 1,3 miljona liecina par stabilu būvniecības tirgu; rāda nākotnes aktivitāti un investīcijas.",
+    "Housing Starts": "Jaunu mājokļu būvniecības sākumu skaits. Apjoms virs aptuveni 1,4 miljona norāda uz veselīgu mājokļu tirgu un būvnieku pārliecību.",
+    "Pending Home Sales": "Noslēgto mājokļu pirkuma līgumu skaits. Pieaugums norāda uz aktivitāti nekustamā īpašuma tirgū un parasti apsteidz faktiskos pārdošanas rādītājus.",
+    "Existing Home Sales": "Esošo mājokļu pārdošanas apjoms. Rāda reālo pieprasījumu mājokļu tirgū un tā ietekmi uz ekonomiku.",
+    "New Home Sales": "Jauno mājokļu pārdošanas apjoms. Sensitīvs rādītājs par mājokļu tirgus pieprasījumu un patērētāju pirktspēju.",
+
+    # Inflācija un Centrālā banka
+    "FOMC Meeting Minutes": "ASV Federālās rezerves sanāksmes protokols. Atklāj amatpersonu diskusijas par procentu likmēm — tirgi meklē signālus par turpmāko monetārās politikas virzienu.",
+    "CPI": "Patēriņa cenu indekss — galvenais ASV inflācijas rādītājs. Augstāks par prognozēm var pamudināt Fed celt procentu likmes, kas parasti stiprina dolāru.",
+    "Core CPI": "Pamatinflācija bez pārtikas un enerģijas cenām. Rāda stabilāku cenu tendenci un ir galvenais Fed likmju lēmumu atslēgas rādītājs.",
+    "PPI": "Ražotāju cenu indekss — cenu izmaiņas ražošanas līmenī. Pieaugums bieži tiek pārnests uz patēriņa cenām un var signalizēt par inflācijas spiedienu.",
+    "Core PPI": "Ražotāju pamatinflācija bez pārtikas un enerģijas. Kalpo kā priekšlaicīgs inflācijas signāls un ietekmē Fed likmju gaidas.",
+    "PCE Price Index": "Personīgo patēriņa izdevumu cenu indekss — Federālās rezerves iecienītais inflācijas rādītājs likmju lēmumiem.",
+    "Core PCE Price Index": "Pamata PCE inflācija bez pārtikas un enerģijas — Fed galvenais mērķa rādītājs likmju politikā.",
+    "Crude Oil Inventories": "Jēlnaftas krājumu izmaiņas ASV. Ietekmē energoresursu un degvielas cenas, kā arī naftas uzņēmumu akcijas.",
+    "10-Year Treasury Auction": "ASV 10 gadu obligāciju izsole. Rāda investoru pieprasījumu pēc valsts parāda un netieši ilgtermiņa procentu likmju gaidas.",
+
+    # Runas un paziņojumi
+    "FOMC Member Barr Speaks": "Fed pārstāvja Bara uzruna par ekonomikas stāvokli un banku regulējumu. Tirgi vēro jebkādas norādes par monetārās politikas virzienu.",
+    "FOMC Member Waller Speaks": "Fed pārstāvja Vollera viedoklis par procentu likmēm un monetārās politikas virzienu. Jebkurš paziņojums var kustināt tirgus.",
+    "Fed Chair Powell Speaks": "ASV Centrālās bankas vadītāja Džeroma Pauela uzruna par ekonomiku un monetāro politiku — viens no ietekmīgākajiem notikumiem tirgos.",
+
+    # Patērētāji un ekonomikas izaugsme
+    "Retail Sales": "Mazumtirdzniecības apjomu izmaiņas — galvenais patērētāju tēriņu rādītājs. Stiprs pieaugums liecina par ekonomikas izaugsmi un var stiprināt dolāru.",
+    "Core Retail Sales": "Mazumtirdzniecība bez automašīnām un degvielas. Rāda stabilāku patērētāju tēriņu tendenci un kopējo patēriņa veselību.",
+    "Consumer Confidence": "Patērētāju konfidences indekss. Augstāka pārliecība parasti nozīmē lielākus tēriņus un ekonomikas atbalstu; indekss ietekmē arī tirgus noskaņojumu.",
+    "Michigan Consumer Sentiment": "Mičiganas universitātes patērētāju noskaņojuma indekss. Rāda, kā mājsaimniecības vērtē ekonomiku un savus tēriņus.",
+    "Consumer Credit": "Patēriņa kredītu apjoma izmaiņas. Pieaugums norāda, ka patērētāji ir gatavi tērēt ar aizņemto līdzekļu palīdzību.",
+    "NFIB Small Business Index": "Mazo uzņēmumu optimismu indekss. Rāda mazo biznesu noskaņojumu — svarīgu darba vietu radītāju ASV ekonomikā.",
+    "GDP": "Iekšzemes kopprodukta izmaiņas — visaptverošākais ekonomikas izaugsmes rādītājs. Spēcīgs pieaugums stiprina dolāru un samazina Fed stimulu nepieciešamību.",
+    "Trade Balance": "Ārējās tirdzniecības bilance. Lielāks eksports pret importu atbalsta dolāru un ekonomikas izaugsmi.",
+    "Wholesale Inventories": "Vairumtirdzniecības krājumu izmaiņas. Rāda pieprasījumu un ražošanas tempu; lieli krājumi var liecināt par pieprasījuma vājināšanos.",
+    "Business Inventories": "Uzņēmumu krājumu izmaiņas. Rāda, vai pieprasījums seko ražošanai, un palīdz novērtēt GDP komponenti.",
+    "Jobless Claims": "Bezdarba pieteikumi. Zems skaits liecina par stabilu darba tirgu, pieaugums — par vājināšanos.",
 }
 
 def fetch_forexfactory_calendar():
@@ -51,9 +98,9 @@ def parse_us_events(text):
     current_date = None
 
     for line in lines:
-        date_match = re.search(r'(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+([A-Za-z]+\s+\d+)', line)
+        date_match = re.search(r'(Mon|Tue|Wed|Thu|Fri|Sat|Sun)\s+(Aug|Sep|Oct|Nov|Dec|Jan|Feb|Mar|Apr|May|Jun|Jul)\s+\d+', line)
         if date_match:
-            current_date = date_match.group(2)
+            current_date = date_match.group(0)
             continue
 
         if not line.startswith('|') or not current_date:
@@ -81,14 +128,21 @@ IMPORTANT_KEYWORDS = [
     'FOMC', 'CPI', 'PMI', 'NFP', 'Employment', 'GDP', 'Fed',
     'Empire State', 'Housing', 'Permits', 'Philly Fed', 'Jobless',
     'Claims', 'Unemployment', 'Retail Sales', 'Durable Goods',
-    'Consumer Confidence', 'Pending Home Sales', 'Building'
+    'Consumer Confidence', 'Pending Home Sales', 'Building', 'Speaks'
 ]
 
 def select_top_events(us_events, max_per_day=2):
     selected = {}
     for date, events in sorted(us_events.items()):
-        scored = []
+        # novērš dublikātus, saglabājot secību
+        unique = []
+        seen = set()
         for ev in events:
+            if ev not in seen:
+                seen.add(ev)
+                unique.append(ev)
+        scored = []
+        for ev in unique:
             score = sum(1 for kw in IMPORTANT_KEYWORDS if kw.lower() in ev.lower())
             scored.append((score, ev))
         scored.sort(key=lambda x: x[0], reverse=True)
@@ -104,31 +158,78 @@ DATE_MAP = [
     ("Piektdiena", "Fri"),
 ]
 
+def get_event_description(event_name):
+    if event_name in DESCRIPTIONS:
+        return DESCRIPTIONS[event_name]
+    for key, desc in DESCRIPTIONS.items():
+        if key.lower() in event_name.lower() or event_name.lower() in key.lower():
+            return desc
+    name = event_name.lower()
+    if "fomc" in name or "fed" in name or "powell" in name or "speaks" in name:
+        return "ASV Centrālās bankas (Fed) pārstāvja runa vai paziņojums par ekonomikas stāvokli un procentu likmju virzienu. Tirgi vēro jebkādas norādes par monetārās politikas izmaiņām."
+    if "pmi" in name:
+        return "Biznesa un ražošanas sektora aktivitātes indekss. Vērtība virs 50 nozīmē izaugsmi, zem 50 — sarukumu."
+    if "employment" in name or "jobs" in name or "jobless" in name or "claims" in name or "payrolls" in name:
+        return "Nodarbinātības un darba tirgus stabilitātes indikators. Spēcīgs darba tirgus parasti atbalsta dolāru un augstākas procentu likmes."
+    if "cpi" in name or "inflation" in name or "price index" in name:
+        return "Inflācijas rādītājs. Augstāka inflācija par prognozēm var pamudināt Fed celt procentu likmes un stiprina dolāru."
+    if "gdp" in name:
+        return "Iekšzemes kopprodukta izmaiņas — galvenais ekonomikas izaugsmes rādītājs. Spēcīgs pieaugums stiprina dolāru."
+    if "retail" in name or "sales" in name:
+        return "Pārdošanas apjomu izmaiņas. Stiprs pieaugums liecina par patērētāju tēriņiem un ekonomikas izaugsmi."
+    if "housing" in name or "home" in name or "mortgage" in name or "permits" in name or "building" in name or "construction" in name:
+        return "Mājokļu vai būvniecības tirgus rādītājs. Pieaugums norāda uz aktivitāti nekustamā īpašuma sektorā."
+    if "inventories" in name or "stock" in name:
+        return "Krājumu izmaiņas. Rāda pieprasījumu un ražošanas tempu ekonomikā."
+    if "trade" in name or "import" in name or "export" in name:
+        return "Ārējās tirdzniecības rādītājs. Lielāks eksports pret importu atbalsta dolāru."
+    if "confidence" in name or "sentiment" in name or "optimism" in name:
+        return "Uzņēmēju vai patērētāju noskaņojuma indekss. Augstāks līmenis parasti nozīmē lielāku ekonomisko aktivitāti."
+    if "oil" in name or "energy" in name or "gas" in name:
+        return "Enerģijas vai naftas krājumu/cenu rādītājs. Ietekmē enerģijas cenas un inflācijas gaidas."
+    if "durable" in name or "orders" in name or "factory" in name or "production" in name or "industrial" in name:
+        return "Rūpniecības pasūtījumu vai produkcijas rādītājs. Pieaugums liecina par ražošanas sektora izaugsmi."
+    if "consumer" in name:
+        return "Patērētāju aktivitātes vai kredītu rādītājs. Rāda patērētāju pirktspēju un tēriņu tendenci."
+    if "treasury" in name or "bond" in name or "auction" in name or "yield" in name:
+        return "ASV valsts obligāciju rādītājs. Parāda investoru pieprasījumu un procentu likmju gaidas."
+    return None
+
 def build_message(selected_events, next_monday):
     lines = ["📊 Nākamās nedēļas ASV ekonomikas dati", ""]
 
-    for lv_name, en_abbr in DATE_MAP:
-        date_str = (next_monday + timedelta(days=DATE_MAP.index((lv_name, en_abbr)))).strftime("%d.%m.")
-        day_num = (next_monday + timedelta(days=DATE_MAP.index((lv_name, en_abbr)))).day
-        date_key = f"{next_monday.strftime('%b')} {day_num}"
-        events = selected_events.get(date_key, ["Nav svarīgu ekonomisko datu"])
+    HOLIDAYS = {"Sep 7": "🏖️ Labor Day — biržas slēgta"}
+
+    scraped_dates = {}
+    for dk in selected_events.keys():
+        parts = dk.split()
+        if len(parts) >= 2:
+            scraped_dates[parts[0]] = dk
+
+    for i, (lv_name, en_abbr) in enumerate(DATE_MAP):
+        date_obj = next_monday + timedelta(days=i)
+        date_str = date_obj.strftime("%d.%m.")
+        month_day = date_obj.strftime("%b %-d")
+        holiday = HOLIDAYS.get(month_day)
+        if holiday:
+            events = [holiday]
+        else:
+            date_key = scraped_dates.get(en_abbr, "")
+            events = selected_events.get(date_key, ["Nav svarīgu ekonomisko datu"]) if date_key else ["Nav svarīgu ekonomisko datu"]
 
         lines.append(f"📅 {lv_name}, {date_str}")
         for ev in events:
-            desc = None
-            for kw in IMPORTANT_KEYWORDS:
-                if kw.lower() in ev.lower():
-                    desc = FALLBACK_DESCRIPTIONS.get(kw)
-                    break
-            if desc:
-                lines.append(f"✅ {ev} — {desc}")
-            else:
+            if ev.startswith("🏖️") or ev == "Nav svarīgu ekonomisko datu":
                 lines.append(f"✅ {ev}")
+            else:
+                desc = get_event_description(ev)
+                if desc:
+                    lines.append(f"✅ {ev} — {desc}")
+                else:
+                    lines.append(f"✅ {ev}")
         lines.append("")
 
-    lines.append("---")
-    lines.append("Šīs nedēļas svarīgie makroekonomikas dati var ievērojami ietekmēt tirgus kustības.")
-    lines.append('🌐 <a href="@url:`https://kriptonr1.xyz`">Kripto Nr.1 ekosistēma</a>')
+    lines.append('🌐 <a href="https://kriptonr1.xyz">Kripto Nr.1 ekosistēma</a>')
     return "\n".join(lines)
 
 def self_check(text):
@@ -137,7 +238,7 @@ def self_check(text):
         errors.append(f"Nav 5 dienu ierakstu: {text.count('📅')}")
     for line in text.split('\n'):
         line = line.strip()
-        if line and not line.startswith(('📅', '✅', '📊', '---', '🌐')):
+        if line and not line.startswith(('📅', '✅', '📊', '---')):
             if line.endswith(('Sāk', 'un ', 'par ', 'uz ', 'no ', 'un')):
                 errors.append(f"Iespējama nepilnīga teikuma: {line}")
     words = text.lower().split()
