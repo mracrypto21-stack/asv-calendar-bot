@@ -6,6 +6,14 @@ import ssl
 from datetime import datetime, timedelta
 import requests
 
+# Infografikas ģenerators (vienā direktorijā ar šo skriptu)
+try:
+    import asv_infographic
+    HAS_INFOGRAPHIC = True
+except Exception as _e:  # pragma: no cover
+    asv_infographic = None
+    HAS_INFOGRAPHIC = False
+
 def load_token() -> str:
     token = os.environ.get("TELEGRAM_BOT_TOKEN")
     if not token:
@@ -279,6 +287,23 @@ def send_alert(text):
     }
     requests.post(url, json=payload, timeout=15)
 
+def send_photo(image_path, caption=None):
+    """Nosūta infografikas bildi (sendPhoto). Caption opcionāls (parasti tekstu sūta atsevišķi)."""
+    url = f'https://api.telegram.org/bot{TELEGRAM_BOT_TOKEN}/sendPhoto'
+    data = {'chat_id': TELEGRAM_CHAT_ID}
+    if caption:
+        data['caption'] = caption
+    with open(image_path, 'rb') as f:
+        files = {'photo': f}
+        resp = requests.post(url, data=data, files=files, timeout=30)
+    resp.raise_for_status()
+    result = resp.json()
+    if result.get('ok'):
+        print(f'Sent photo message_id={result["result"]["message_id"]}')
+    else:
+        print(f'Kļūda sūtot bildi: {result}')
+        exit(1)
+
 def main():
     today = datetime.now()
     days_until_monday = (7 - today.weekday()) % 7
@@ -317,6 +342,20 @@ def main():
         print("✅ Self-check passed")
 
         if os.environ.get("SEND_TELEGRAM", "0") == "1":
+            # 1) Nosūta infografikas bildi (ja pieejams ģenerators)
+            if HAS_INFOGRAPHIC:
+                try:
+                    img_path = os.path.join(
+                        os.path.dirname(os.path.abspath(__file__)),
+                        f"asv_infographic_{next_monday.strftime('%Y%m%d')}.png")
+                    asv_infographic.generate_infographic(selected, next_monday, img_path)
+                    print(f"✅ Infografika ģenerēta: {img_path}")
+                    send_photo(img_path)
+                except Exception as e:
+                    print(f"⚠️ Infografiku neizdevās nosūtīt (turpinu ar tekstu): {e}")
+            else:
+                print("⚠️ Infografikas modulis nav pieejams — sūtu tikai tekstu")
+            # 2) Nosūta teksta ziņu kā parasti
             send_telegram(message)
             print("✅ Ziņa nosūtīta veiksmīgi")
 
