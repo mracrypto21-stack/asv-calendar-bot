@@ -6,12 +6,12 @@ import ssl
 from datetime import datetime, timedelta
 import requests
 
-# Infografikas ģenerators (vienā direktorijā ar šo skriptu)
+# Infografikas/dashboard ģenerators (vienā direktorijā ar šo skriptu)
 try:
-    import asv_infographic
+    import asv_dashboard
     HAS_INFOGRAPHIC = True
 except Exception as _e:  # pragma: no cover
-    asv_infographic = None
+    asv_dashboard = None
     HAS_INFOGRAPHIC = False
 
 def load_token() -> str:
@@ -342,19 +342,23 @@ def main():
         print("✅ Self-check passed")
 
         if os.environ.get("SEND_TELEGRAM", "0") == "1":
-            # 1) Nosūta infografikas bildi (ja pieejams ģenerators)
+            # 1) Dashboard bilde — tikai rādītāji, kas atbilst nedēļas notikumiem
             if HAS_INFOGRAPHIC:
                 try:
-                    img_path = os.path.join(
-                        os.path.dirname(os.path.abspath(__file__)),
-                        f"asv_infographic_{next_monday.strftime('%Y%m%d')}.png")
-                    asv_infographic.generate_infographic(selected, next_monday, img_path)
-                    print(f"✅ Infografika ģenerēta: {img_path}")
-                    send_photo(img_path)
+                    ind_keys = asv_dashboard.select_indicators(selected)
+                    if ind_keys:
+                        img_path = os.path.join(
+                            os.path.dirname(os.path.abspath(__file__)),
+                            f"asv_dashboard_{next_monday.strftime('%Y%m%d')}.png")
+                        asv_dashboard.generate_dashboard(ind_keys, img_path)
+                        print(f"✅ Dashboard ģenerēts: {img_path} ({ind_keys})")
+                        send_photo(img_path)
+                    else:
+                        print("ℹ️ Šai nedēļai nav atbilstošu FRED rādītāju — bildi nesūta")
                 except Exception as e:
-                    print(f"⚠️ Infografiku neizdevās nosūtīt (turpinu ar tekstu): {e}")
+                    print(f"⚠️ Dashboard attēlu neizdevās ģenerēt (turpinu ar tekstu): {e}")
             else:
-                print("⚠️ Infografikas modulis nav pieejams — sūtu tikai tekstu")
+                print("⚠️ Dashboard modulis nav pieejams — sūtu tikai tekstu")
             # 2) Nosūta teksta ziņu kā parasti
             send_telegram(message)
             print("✅ Ziņa nosūtīta veiksmīgi")
