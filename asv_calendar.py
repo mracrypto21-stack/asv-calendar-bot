@@ -139,23 +139,88 @@ IMPORTANT_KEYWORDS = [
     'Consumer Confidence', 'Pending Home Sales', 'Building', 'Speaks'
 ]
 
+# Kanoniskās notikumu saimes: globāla grupa, kas pārvērš vairākus scrape
+# notikumus vienā rindiņā. (family_key, display_name, is_headline, [match_substrings])
+# Formāts: visi notikumi, kas atbilst 'match_substrings', tiek apvienoti vienā
+# "display_name" rindā ar vienu prioritāti un HEADLINE statusu.
+CANONICAL_FAMILIES = [
+    # FOMC lēmuma pašas dienas galvenie ieraksti (nevis vispārīgi 'fomc',
+    # lai "FOMC Member X Speaks" netiktu sajaukts ar pašu likmju lēmumu)
+    ("fomc", "ASV Federālo rezervju sistēmas (Fed) likmju lēmums un FOMC sanāksme", True,
+     ["federal funds rate", "fomc statement", "fomc press conference",
+      "fomc economic projections"]),
+    ("inflacija_core", "Core CPI", False, ["core cpi"]),
+    ("inflacija", "CPI", False, ["cpi"]),
+    ("ppi_core", "Core PPI", False, ["core ppi"]),
+    ("ppi", "PPI", False, ["ppi", "producer price"]),
+    ("pce", "PCE", False, ["pce"]),
+    ("darba_tirgus_nfp", "Non-Farm Payrolls m/m", False,
+     ["non-farm payrolls", "nonfarm payrolls", "non farm payrolls"]),
+    ("bezdarbs", "Unemployment Rate", False, ["unemployment rate"]),
+    ("jobless", "Initial Jobless Claims", False, ["jobless claims", "initial claims", "unemployment claims"]),
+    ("ikp", "GDP", False, ["gdp"]),
+    ("retail", "Retail Sales m/m", False, ["retail sales", "core retail sales"]),
+    ("rūpn_empire", "Empire State Manufacturing Index", False, ["empire state"]),
+    ("rūpn_philly", "Philly Fed Manufacturing Index", False, ["philly"]),
+    ("housing_starts", "Housing Starts", False, ["housing starts"]),
+    ("permits", "Building Permits", False, ["building permits"]),
+    ("pending_home", "Pending Home Sales m/m", False, ["pending home sales"]),
+    ("conf", "Consumer Confidence", False, ["consumer confidence"]),
+    ("sentiment", "Michigan Consumer Sentiment", False, ["michigan"]),
+    ("capacity", "Capacity Utilization Rate", False, ["capacity utilization"]),
+    ("indprod", "Industrial Production m/m", False, ["industrial production"]),
+    ("dur", "Durable Goods Orders", False, ["durable goods"]),
+    ("factory", "Factory Orders m/m", False, ["factory orders"]),
+    ("fed_speaks", "Fed amatpersonu runas (speaks)", False,
+     ["speaks", "fed chair", "powell"]),
+]
+
+# Prioritātes (augstāks = pirmāks) pa saimju atslēgām; headline vienmēr pirmā.
+FAMILY_PRIORITY = {
+    "fomc": 100, "ikp": 78, "darba_tirgus_nfp": 78, "bezdarbs": 74,
+    "inflacija_core": 76, "inflacija": 72, "pce": 70, "ppi_core": 66, "ppi": 62,
+    "retail": 58, "capacity": 56, "indprod": 56, "dur": 54, "factory": 52,
+    "housing_starts": 52, "permits": 52, "pending_home": 50, "conf": 50,
+    "sentiment": 50, "rūpn_empire": 46, "rūpn_philly": 46, "jobless": 50,
+}
+
+def _match_family(ev):
+    """Scrape notikums -> (family_key, display_name, is_headline) vai None."""
+    low = " " + ev.lower() + " "
+    for key_, disp, hl, pats in CANONICAL_FAMILIES:
+        if any(p in low for p in pats):
+            return (key_, disp, hl)
+    return None
+
 def select_top_events(us_events, max_per_day=2):
     selected = {}
     for date, events in sorted(us_events.items()):
-        # novērš dublikātus, saglabājot secību
-        unique = []
-        seen = set()
+        # 1) apvieno notikumus pa saimēm (kārtības saglabāšana nav svarīga — prio rindos)
+        fam_order, chosen = [], {}
         for ev in events:
-            if ev not in seen:
-                seen.add(ev)
-                unique.append(ev)
-        scored = []
-        for ev in unique:
-            score = sum(1 for kw in IMPORTANT_KEYWORDS if kw.lower() in ev.lower())
-            scored.append((score, ev))
-        scored.sort(key=lambda x: x[0], reverse=True)
-        top = [ev for _, ev in scored[:max_per_day]]
-        selected[date] = top if top else ["Nav svarīgu ekonomisko datu"]
+            if ev.startswith("🏖️") or ev == "Nav svarīgu ekonomisko datu":
+                continue
+            m = _match_family(ev)
+            if m:
+                key_, disp, hl = m
+                if key_ in chosen:
+                    continue  # jau apvienots citā burtā no tās pašas saimes
+                chosen[key_] = (disp, hl)
+                fam_order.append(key_)
+        # 2) vilkšana pa prioritāti: headline pirmā, tad prio, tad secība
+        ranked = []
+        used_names = set()
+        for key_ in fam_order:
+            disp, hl = chosen[key_]
+            prio = FAMILY_PRIORITY.get(key_, 10)
+            score = (50_000 if hl else 0) + prio
+            marker = (0 if hl else 1, -prio, len(ranked))
+            ranked.append((score, marker, disp))
+        ranked.sort(key=lambda x: -x[0])
+        top = [disp for _, _, disp in ranked[:max_per_day]]
+        if not top:
+            top = ["Nav svarīgu ekonomisko datu"]
+        selected[date] = top
     return selected
 
 DATE_MAP = [
@@ -173,19 +238,56 @@ def get_event_description(event_name):
         if key.lower() in event_name.lower() or event_name.lower() in key.lower():
             return desc
     name = event_name.lower()
-    if "fomc" in name or "fed" in name or "powell" in name or "speaks" in name:
-        return "ASV Centrālās bankas (Fed) pārstāvja runa vai paziņojums par ekonomikas stāvokli un procentu likmju virzienu. Tirgi vēro jebkādas norādes par monetārās politikas izmaiņām."
-    if "pmi" in name:
-        return "Biznesa un ražošanas sektora aktivitātes indekss. Vērtība virs 50 nozīmē izaugsmi, zem 50 — sarukumu."
-    if "employment" in name or "jobs" in name or "jobless" in name or "claims" in name or "payrolls" in name:
-        return "Nodarbinātības un darba tirgus stabilitātes indikators. Spēcīgs darba tirgus parasti atbalsta dolāru un augstākas procentu likmes."
-    if "cpi" in name or "inflation" in name or "price index" in name:
-        return "Inflācijas rādītājs. Augstāka inflācija par prognozēm var pamudināt Fed celt procentu likmes un stiprina dolāru."
-    if "gdp" in name:
-        return "Iekšzemes kopprodukta izmaiņas — galvenais ekonomikas izaugsmes rādītājs. Spēcīgs pieaugums stiprina dolāru."
+    # Kanonisko (apvienoto) nosaukumu apraksti
+    if "likmju lēmums" in name or "fomc" in name:
+        return ("Nedēļas un mēneša galvenais notikums — ASV centrālās bankas (Fed) "
+                "lēmums par procentu likmēm un monetārās politikas virzienu. "
+                "Tirgi gaidīs signālus par turpmāko likmju gaitu un izmaiņām 2026. gadā.")
+    if "retail sales" in name:
+        return ("Mazumtirdzniecības apjomi — galvenais patērētāju tēriņu rādītājs, kas "
+                "ietekmē dolāra kursu un inflācijas gaidas. Pamata rādītājs (Core) neietver "
+                "auto tirdzniecību.")
+    if name in ("jobless claims", "initial jobless claims") or "claims" in name:
+        return ("Iknedēļas jauno bezdarbnieku pieteikumi. Rādītājs zem aptuveni 250 000 "
+                "liecina par darba tirgus stabilitāti.")
+    if "empire state" in name:
+        return "Ņujorkas reģiona rūpniecības aktivitātes indekss. Vērtība virs 0 norāda uz izaugsmi, zem 0 — uz lejupslīdi."
+    if "philly" in name:
+        return "Filadelfijas reģiona ražošanas sektora indekss — ASV rūpniecības veselības barometrs."
+    if "capacity utilization" in name:
+        return ("Rūpniecisko jaudu noslodzes līmenis. Parāda ražošanas sektora efektivitāti, "
+                "jaudu pārkaršanas riskus un inflācijas spiedienu.")
+    if "industrial production" in name:
+        return "Rūpnieciskās ražošanas apjoma izmaiņas — ekonomikas ražošanas sektora temps."
+    if "building permits" in name:
+        return "Izsniegto būvatļauju skaits — nākotnes būvniecības aktivitātes rādītājs."
+    if "housing starts" in name:
+        return "Jaunu mājokļu būvniecības sākumu skaits — mājokļu tirgus veselības rādītājs."
+    if "pending home sales" in name:
+        return "Noslēgto mājokļu pirkuma līgumu skaits — aktivitāte nekustamā īpašuma tirgū."
     if "retail" in name or "sales" in name:
         return "Pārdošanas apjomu izmaiņas. Stiprs pieaugums liecina par patērētāju tēriņiem un ekonomikas izaugsmi."
-    if "housing" in name or "home" in name or "mortgage" in name or "permits" in name or "building" in name or "construction" in name:
+    if "consumer confidence" in name or "michigan" in name:
+        return "Patērētāju noskaņojuma indekss — augstāks līmenis nozīmē lielākus tēriņus un ekonomiskāku aktivitāti."
+    if "durable goods" in name:
+        return "Ilgtermiņa preču pasūtījumi — pieprasījuma un investoru pārliecības rādītājs."
+    if "factory orders" in name:
+        return "Rūpniecības pasūtījumu izmaiņas — pieprasījuma rādītājs ražošanas sektorā."
+    if "non-farm payrolls" in name or "nonfarm payrolls" in name:
+        return ("Jauno darba vietu skaits ārpus lauksaimniecības — ietekmīgākais mēneša "
+                "darba tirgus rādītājs, kas ietekmē dolāru un Fed likmju gaidas.")
+    if "unemployment rate" in name:
+        return "Bezdarba līmenis — būtisks darba tirgus un Fed likmju lēmumu rādītājs."
+    if "gdp" in name:
+        return "Iekšzemes kopprodukta izmaiņas — galvenais ekonomikas izaugsmes rādītājs."
+    if "fomc" in name or "fed" in name or "powell" in name or "speaks" in name:
+        return ("ASV Centrālās bankas (Fed) sanāksme vai paziņojums par monetāro politiku. "
+                "Tirgi vēro jebkādas norādes par procentu likmju izmaiņām.")
+    if "cpi" in name or "inflation" in name or "price index" in name:
+        return "Inflācijas rādītājs. Augstāka inflācija par prognozēm var pamudināt Fed celt procentu likmes un stiprina dolāru."
+    if "pmi" in name:
+        return "Biznesa un ražošanas sektora aktivitātes indekss. Vērtība virs 50 nozīmē izaugsmi, zem 50 — sarukumu."
+    if "housing" in name or "home" in name or "mortgage" in name or "permits" in name or "building" in name:
         return "Mājokļu vai būvniecības tirgus rādītājs. Pieaugums norāda uz aktivitāti nekustamā īpašuma sektorā."
     if "inventories" in name or "stock" in name:
         return "Krājumu izmaiņas. Rāda pieprasījumu un ražošanas tempu ekonomikā."
@@ -195,16 +297,15 @@ def get_event_description(event_name):
         return "Uzņēmēju vai patērētāju noskaņojuma indekss. Augstāks līmenis parasti nozīmē lielāku ekonomisko aktivitāti."
     if "oil" in name or "energy" in name or "gas" in name:
         return "Enerģijas vai naftas krājumu/cenu rādītājs. Ietekmē enerģijas cenas un inflācijas gaidas."
-    if "durable" in name or "orders" in name or "factory" in name or "production" in name or "industrial" in name:
+    if "durable" in name or "orders" in name or "factory" in name or "production" in name or "industrial" in name or "capacity" in name:
         return "Rūpniecības pasūtījumu vai produkcijas rādītājs. Pieaugums liecina par ražošanas sektora izaugsmi."
     if "consumer" in name:
         return "Patērētāju aktivitātes vai kredītu rādītājs. Rāda patērētāju pirktspēju un tēriņu tendenci."
-    if "treasury" in name or "bond" in name or "auction" in name or "yield" in name:
-        return "ASV valsts obligāciju rādītājs. Parāda investoru pieprasījumu un procentu likmju gaidas."
     return None
 
 def build_message(selected_events, next_monday):
-    lines = ["📊 Nākamās nedēļas ASV ekonomikas dati", ""]
+    week_end = next_monday + timedelta(days=4)
+    lines = [f"📊 Nākamās nedēļas ASV ekonomikas dati ({next_monday.strftime('%d.%m.')} — {week_end.strftime('%d.%m.')})", ""]
 
     HOLIDAYS = {"Sep 7": "🏖️ Labor Day — biržas slēgta"}
 
@@ -231,10 +332,13 @@ def build_message(selected_events, next_monday):
                 lines.append(f"✅ {ev}")
             else:
                 desc = get_event_description(ev)
+                # Headline (Fed likmju lēmums / FOMC) — izcelts ar 🔥
+                is_headline = "likmju lēmums" in ev.lower() or "fomc" in ev.lower()
+                bullet = "🔥 " if is_headline else "✅ "
                 if desc:
-                    lines.append(f"✅ {ev} — {desc}")
+                    lines.append(f"{bullet}{ev} — {desc}")
                 else:
-                    lines.append(f"✅ {ev}")
+                    lines.append(f"{bullet}{ev}")
         lines.append("")
 
     lines.append('🌐 <a href="https://kriptonr1.xyz">Kripto Nr.1 ekosistēma</a>')
