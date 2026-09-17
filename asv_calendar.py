@@ -447,21 +447,46 @@ def main():
 
         if os.environ.get("SEND_TELEGRAM", "0") == "1":
             # 1) Dashboard bilde — tikai rādītāji, kas atbilst nedēļas notikumiem
-            if HAS_INFOGRAPHIC:
+            send_image = True
+            # Pirms bildes pārbauda kie.ai kredītus — ja beigušies, sūta tikai tekstu
+            try:
+                import kie_bg
+                credits = kie_bg.check_credits()
+                if credits < 6:
+                    print(f"⚠️ kie.ai kredīti nepietiekami ({credits}) — sūtu tikai ziņu bez bildes")
+                    send_image = False
+                else:
+                    print(f"ℹ️ kie.ai kredīti: {credits}")
+            except Exception as ce:
+                print(f"ℹ️ Nevar pārbaudīt kie.ai kredītus ({ce}) — mēģinu ģenerēt")
+            if send_image and HAS_INFOGRAPHIC:
                 try:
                     ind_keys = asv_dashboard.select_indicators(selected)
                     if ind_keys:
                         img_path = os.path.join(
                             os.path.dirname(os.path.abspath(__file__)),
                             f"asv_dashboard_{next_monday.strftime('%Y%m%d')}.png")
-                        asv_dashboard.generate_dashboard(ind_keys, img_path)
-                        print(f"✅ Dashboard ģenerēts: {img_path} ({ind_keys})")
+                        # Premium dashboard: kie.ai fons (vērsis/lācis, neona svečturi,
+                        # kāpjošs tirgus grafiks u.c.) + HTML dati virsū (pikseļprecīzs
+                        # teksts). asv_dashboard_html.py jāpalaiž ar /usr/bin/python3,
+                        # jo tam ir playwright.
+                        import subprocess
+                        html_script = os.path.join(
+                            os.path.dirname(os.path.abspath(__file__)), "asv_dashboard_html.py")
+                        cmd = ["/usr/bin/python3", html_script, img_path] + ind_keys
+                        try:
+                            subprocess.run(cmd, check=True, timeout=300)
+                            print(f"✅ Premium dashboard (kie.ai + HTML) ģenerēts: {img_path} ({ind_keys})")
+                        except Exception as ke:
+                            print(f"⚠️ HTML dashboard neizdevās, atkāpjas uz matplotlib: {ke}")
+                            asv_dashboard.generate_dashboard(ind_keys, img_path)
+                            print(f"✅ Dashboard (matplotlib) ģenerēts: {img_path} ({ind_keys})")
                         send_photo(img_path)
                     else:
                         print("ℹ️ Šai nedēļai nav atbilstošu FRED rādītāju — bildi nesūta")
                 except Exception as e:
                     print(f"⚠️ Dashboard attēlu neizdevās ģenerēt (turpinu ar tekstu): {e}")
-            else:
+            elif send_image:
                 print("⚠️ Dashboard modulis nav pieejams — sūtu tikai tekstu")
             # 2) Nosūta teksta ziņu kā parasti
             send_telegram(message)
