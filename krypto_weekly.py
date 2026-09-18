@@ -2,14 +2,14 @@
 """Nedēļas kripto tirgus pārskats — pirmdienās 09:00 LV.
 
 1. Savāc datus (CoinGecko + alternative.me + SoSoValue ETF):
-   - kopējā tirgus kapitalizācija (TOTAL cap)
-   - BTC cena + nedēļas izmaiņa
-   - ETH cena + nedēļas izmaiņa
-   - BTC dominance
+   - kopējā tirgus kapitalizācija (TOTAL cap) + 7d sparkline
+   - BTC cena + 7d izmaiņa + 7d sparkline
+   - ETH cena + 7d izmaiņa + 7d sparkline
+   - BTC dominance (+ ETH dominance donut)
    - Fear & Greed indekss (+ izmaiņa pret iepriekšējo nedēļu)
-   - BTC ETF nedēļas inflow (summa pēdējām 7 dienām) + izmaiņa pret iepriekšējo nedēļu
-   - ETH ETF nedēļas inflow + izmaiņa
-2. Ģenerē infografiku (krypto_dashboard_html.py: kie.ai fons + HTML→PNG).
+   - BTC ETF nedēļas inflow + izmaiņa + 5 dienu joslas
+   - ETH ETF nedēļas inflow + izmaiņa + 5 dienu joslas
+2. Ģenerē infografiku (krypto_dashboard_html.py: kie.ai fons + HTML/SVG→PNG).
 3. Nosūta uz Telegram: bilde + teksts + footer saite kriptonr1.xyz.
 4. Sagatavo X (Twitter) postu (≤280, EN, mracrypto.co) un nosūta caur xurl.
 
@@ -83,10 +83,11 @@ def _get(url, headers=None, timeout=20, retries=3):
 
 
 def fetch_market():
-    """TOTAL cap, BTC/ETH cena + 7d, BTC dominance, Fear & Greed (+ prev)."""
+    """TOTAL cap, BTC/ETH cena + 7d, dominance, Fear & Greed, 7d series."""
     g = _get(COINGECKO_GLOBAL)["data"]
     total_cap = g["total_market_cap"]["usd"]
     btc_dom = g["market_cap_percentage"].get("btc")
+    eth_dom = g["market_cap_percentage"].get("eth")
 
     pr = _get(
         "https://api.coingecko.com/api/v3/coins/markets"
@@ -99,11 +100,26 @@ def fetch_market():
     fng = _get(FNG_URL)["data"][0]
     fng_val = int(fng["value"])
     fng_class = fng.get("value_classification", "")
-    # iepriekšējā nedēļa (limit=2 → [0]=tagad, [1]=iepriekšējais)
     try:
         fng_prev = int(_get(FNG_URL + "?limit=2")["data"][1]["value"])
     except Exception:
         fng_prev = fng_val
+
+    # 7 dienu vēsture sparklines (prices + market_caps)
+    btc_series = _get("https://api.coingecko.com/api/v3/coins/bitcoin/market_chart?vs_currency=usd&days=7")
+    eth_series = _get("https://api.coingecko.com/api/v3/coins/ethereum/market_chart?vs_currency=usd&days=7")
+
+    def prices(series):
+        return [p for _, p in series.get("prices", [])]
+
+    def mcaps(series):
+        return [m for _, m in series.get("market_caps", [])]
+
+    btc_prices = prices(btc_series)
+    eth_prices = prices(eth_series)
+    btc_mcaps = mcaps(btc_series)
+    eth_mcaps = mcaps(eth_series)
+    total_cap_series = [b + e for b, e in zip(btc_mcaps, eth_mcaps)] if btc_mcaps and eth_mcaps else []
 
     return {
         "total_cap": total_cap,
@@ -112,14 +128,18 @@ def fetch_market():
         "eth_price": eth["current_price"],
         "eth_7d": eth.get("price_change_percentage_7d_in_currency", 0) or 0,
         "btc_dom": btc_dom,
+        "eth_dom": eth_dom,
         "fng": fng_val,
         "fng_class": fng_class,
         "fng_prev": fng_prev,
+        "btc_series": btc_prices,
+        "eth_series": eth_prices,
+        "total_cap_series": total_cap_series,
     }
 
 
 def fetch_etf_weekly():
-    """BTC/ETH ETF nedēļas inflow (pēdējās 7 dienas) + iepriekšējā nedēļa."""
+    """BTC/ETH ETF nedēļas inflow + iepriekšējā nedēļa + 5 dienu joslas."""
     key = load_sosovalue_key()
     if not key:
         return None
@@ -141,7 +161,8 @@ def fetch_etf_weekly():
             last14 = data[-14:]
             this_week = sum(x.get("total_net_inflow", 0) for x in last14[-7:])
             prev_week = sum(x.get("total_net_inflow", 0) for x in last14[:7])
-            out[sym] = {"this_week": this_week, "prev_week": prev_week}
+            daily = [x.get("total_net_inflow", 0) for x in last14[-5:]]
+            out[sym] = {"this_week": this_week, "prev_week": prev_week, "daily": daily}
         except Exception as e:
             print(f"  ⚠️ SoSoValue {sym} kļūda: {e}")
             out[sym] = None
@@ -272,8 +293,9 @@ def main():
     print(f"  TOTAL cap: ${fmt_usd(m['total_cap'])}")
     print(f"  BTC: ${m['btc_price']:,.0f} ({fmt_pct(m['btc_7d'])})")
     print(f"  ETH: ${m['eth_price']:,.0f} ({fmt_pct(m['eth_7d'])})")
-    print(f"  BTC dom: {m['btc_dom']:.1f}%")
+    print(f"  BTC dom: {m['btc_dom']:.1f}%  ETH dom: {m['eth_dom']:.1f}%")
     print(f"  F&G: {m['fng']} ({m['fng_class']}) prev {m['fng_prev']}")
+    print(f"  series: btc={len(m['btc_series'])} eth={len(m['eth_series'])} total={len(m['total_cap_series'])}")
 
     print("Savācu ETF datus...")
     etf = fetch_etf_weekly()
@@ -281,7 +303,7 @@ def main():
         for sym in ("BTC", "ETH"):
             e = etf.get(sym)
             if e and e["this_week"] is not None:
-                print(f"  {sym} ETF 7d: {fmt_usd(e['this_week'])} (prev {fmt_usd(e['prev_week'])})")
+                print(f"  {sym} ETF 7d: {fmt_usd(e['this_week'])} (prev {fmt_usd(e['prev_week'])}) daily={e['daily']}")
 
     text = build_telegram_text(m, etf)
     x_post = build_x_post(m, etf)
