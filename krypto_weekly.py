@@ -28,7 +28,6 @@ import requests
 
 # ---------- konfigurācija ----------
 TELEGRAM_CHAT_ID = "1494676964"
-FOOTER_LINK = '🔗 Kripto nr. 1 ekosistēma: <a href="https://kriptonr1.xyz/">kriptonr1.xyz</a>'
 X_LINK = "Check it out mracrypto.co 🚀"
 
 COINGECKO_GLOBAL = "https://api.coingecko.com/api/v3/global"
@@ -120,6 +119,20 @@ def fetch_market():
     btc_mcaps = mcaps(btc_series)
     eth_mcaps = mcaps(eth_series)
     total_cap_series = [b + e for b, e in zip(btc_mcaps, eth_mcaps)] if btc_mcaps and eth_mcaps else []
+    # BTC dominance izmaiņa pret iepriekšējo nedēļu.
+    # total_cap_series = BTC+ETH mcap (nav īstais TOTAL). Aprēķinām TOTAL prev,
+    # pieņemot, ka pārējais tirgus auga tādā pašā tempā kā BTC+ETH.
+    btc_dom_prev = None
+    try:
+        btc_now = btc_mcaps[-1]
+        btc_prev = btc_mcaps[0]
+        eth_now = eth_mcaps[-1]
+        eth_prev = eth_mcaps[0]
+        growth = ((btc_now + eth_now) / (btc_prev + eth_prev)) - 1.0
+        total_prev = total_cap / (1.0 + growth)
+        btc_dom_prev = btc_prev / total_prev * 100.0
+    except Exception:
+        btc_dom_prev = None
 
     return {
         "total_cap": total_cap,
@@ -129,6 +142,7 @@ def fetch_market():
         "eth_7d": eth.get("price_change_percentage_7d_in_currency", 0) or 0,
         "btc_dom": btc_dom,
         "eth_dom": eth_dom,
+        "btc_dom_prev": btc_dom_prev,
         "fng": fng_val,
         "fng_class": fng_class,
         "fng_prev": fng_prev,
@@ -197,11 +211,18 @@ def build_telegram_text(m, etf):
     lines = []
     lines.append("📊 <b>Nedēļas kripto tirgus pārskats</b>")
     lines.append("")
-    lines.append(f"💰 Kopējā tirgus kapitalizācija: ${fmt_usd(m['total_cap'])}")
-    lines.append(f"₿ Bitcoin (BTC): ${m['btc_price']:,.0f} {arrow(m['btc_7d'])} {fmt_pct(m['btc_7d'])} (7d)")
-    lines.append(f"Ξ Ethereum (ETH): ${m['eth_price']:,.0f} {arrow(m['eth_7d'])} {fmt_pct(m['eth_7d'])} (7d)")
-    lines.append(f"📈 BTC dominance: {m['btc_dom']:.1f}%")
-    lines.append(f"😨 Fear & Greed: {m['fng']} ({m['fng_class']})")
+    lines.append(f"💰 TOTAL cap: {fmt_usd(m['total_cap'])}")
+    lines.append(f"₿ BTC: ${m['btc_price']:,.0f} {arrow(m['btc_7d'])} {fmt_pct(m['btc_7d'])} (7d)")
+    lines.append(f"Ξ ETH: ${m['eth_price']:,.0f} {arrow(m['eth_7d'])} {fmt_pct(m['eth_7d'])} (7d)")
+    # Dominance ar izmaiņu pret iepriekšējo nedēļu
+    dom_chg = (m['btc_dom'] - m['btc_dom_prev']) if m.get('btc_dom_prev') is not None else None
+    if dom_chg is not None:
+        lines.append(f"📈 BTC dominance: {m['btc_dom']:.1f}% {arrow(dom_chg)} {dom_chg:+.1f} pp (7d)")
+    else:
+        lines.append(f"📈 BTC dominance: {m['btc_dom']:.1f}%")
+    # Fear & Greed ar izmaiņu pret iepriekšējo nedēļu
+    fng_chg = m['fng'] - m['fng_prev']
+    lines.append(f"😨 Fear & Greed: {m['fng']} ({m['fng_class']}) {arrow(fng_chg)} {fng_chg:+.0f} pts (7d)")
     lines.append("")
     if etf:
         for sym in ("BTC", "ETH"):
@@ -209,11 +230,11 @@ def build_telegram_text(m, etf):
             if e and e["this_week"] is not None:
                 chg = e["this_week"] - e["prev_week"]
                 lines.append(
-                    f"{'₿' if sym=='BTC' else 'Ξ'} {sym} ETF nedēļas inflow: {fmt_usd(e['this_week'])} "
+                    f"{'₿' if sym=='BTC' else 'Ξ'} {sym} ETF: {fmt_usd(e['this_week'])} "
                     f"{arrow(chg)} {fmt_usd(chg)} vs iepr. nedēļa"
                 )
     lines.append("")
-    lines.append(FOOTER_LINK)
+    lines.append(f"🔗 <a href=\"https://kriptonr1.xyz/\">Kripto nr. 1 ekosistēma</a>")
     return "\n".join(lines)
 
 
@@ -221,9 +242,9 @@ def build_x_post(m, etf):
     """X post ≤280 rakstzīmes, EN, mracrypto.co."""
     lines = []
     lines.append("📊 Weekly Crypto Update:")
-    lines.append(f"• TOTAL cap: ${fmt_usd(m['total_cap'])} {arrow(m['btc_7d'])} ({fmt_pct(m['btc_7d'])})")
-    lines.append(f"• BTC: ${m['btc_price']:,.0f} {arrow(m['btc_7d'])} ({fmt_pct(m['btc_7d'])})")
-    lines.append(f"• ETH: ${m['eth_price']:,.0f} {arrow(m['eth_7d'])} ({fmt_pct(m['eth_7d'])})")
+    lines.append(f"• TOTAL cap: {fmt_usd(m['total_cap'])} {arrow(m['btc_7d'])} ({fmt_pct(m['btc_7d'])})")
+    lines.append(f"• ₿ BTC: ${m['btc_price']:,.0f} {arrow(m['btc_7d'])} ({fmt_pct(m['btc_7d'])})")
+    lines.append(f"• Ξ ETH: ${m['eth_price']:,.0f} {arrow(m['eth_7d'])} ({fmt_pct(m['eth_7d'])})")
     lines.append(f"• BTC Dom: {m['btc_dom']:.1f}% {arrow(m['btc_dom'] - 50)}")
     lines.append(f"• Fear & Greed: {m['fng']} {arrow(m['fng'] - 50)}")
     if etf and etf.get("BTC") and etf["BTC"]["this_week"] is not None:
