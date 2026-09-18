@@ -6,7 +6,7 @@
    - BTC cena + nedēļas izmaiņa
    - ETH cena + nedēļas izmaiņa
    - BTC dominance
-   - Fear & Greed indekss
+   - Fear & Greed indekss (+ izmaiņa pret iepriekšējo nedēļu)
    - BTC ETF nedēļas inflow (summa pēdējām 7 dienām) + izmaiņa pret iepriekšējo nedēļu
    - ETH ETF nedēļas inflow + izmaiņa
 2. Ģenerē infografiku (krypto_dashboard_html.py: kie.ai fons + HTML→PNG).
@@ -83,7 +83,7 @@ def _get(url, headers=None, timeout=20, retries=3):
 
 
 def fetch_market():
-    """TOTAL cap, BTC/ETH cena + 7d, BTC dominance, Fear & Greed."""
+    """TOTAL cap, BTC/ETH cena + 7d, BTC dominance, Fear & Greed (+ prev)."""
     g = _get(COINGECKO_GLOBAL)["data"]
     total_cap = g["total_market_cap"]["usd"]
     btc_dom = g["market_cap_percentage"].get("btc")
@@ -99,6 +99,11 @@ def fetch_market():
     fng = _get(FNG_URL)["data"][0]
     fng_val = int(fng["value"])
     fng_class = fng.get("value_classification", "")
+    # iepriekšējā nedēļa (limit=2 → [0]=tagad, [1]=iepriekšējais)
+    try:
+        fng_prev = int(_get(FNG_URL + "?limit=2")["data"][1]["value"])
+    except Exception:
+        fng_prev = fng_val
 
     return {
         "total_cap": total_cap,
@@ -109,6 +114,7 @@ def fetch_market():
         "btc_dom": btc_dom,
         "fng": fng_val,
         "fng_class": fng_class,
+        "fng_prev": fng_prev,
     }
 
 
@@ -148,14 +154,14 @@ def fmt_usd(v):
     v = float(v)
     a = abs(v)
     if a >= 1e12:
-        return f"{v/1e12:.2f}T"
+        return f"${v/1e12:.2f}T"
     if a >= 1e9:
-        return f"{v/1e9:.2f}B"
+        return f"${v/1e9:.2f}B"
     if a >= 1e6:
-        return f"{v/1e6:.1f}M"
+        return f"${v/1e6:.1f}M"
     if a >= 1e3:
-        return f"{v/1e3:.1f}K"
-    return f"{v:.0f}"
+        return f"${v/1e3:.1f}K"
+    return f"${v:.0f}"
 
 
 def fmt_pct(v):
@@ -267,7 +273,7 @@ def main():
     print(f"  BTC: ${m['btc_price']:,.0f} ({fmt_pct(m['btc_7d'])})")
     print(f"  ETH: ${m['eth_price']:,.0f} ({fmt_pct(m['eth_7d'])})")
     print(f"  BTC dom: {m['btc_dom']:.1f}%")
-    print(f"  F&G: {m['fng']} ({m['fng_class']})")
+    print(f"  F&G: {m['fng']} ({m['fng_class']}) prev {m['fng_prev']}")
 
     print("Savācu ETF datus...")
     etf = fetch_etf_weekly()
