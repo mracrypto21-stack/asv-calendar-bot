@@ -143,6 +143,7 @@ def fetch_market():
         "btc_dom": btc_dom,
         "eth_dom": eth_dom,
         "btc_dom_prev": btc_dom_prev,
+        "total_cap_7d": ((total_cap_series[-1] / total_cap_series[0]) - 1.0) * 100.0 if len(total_cap_series) >= 2 and total_cap_series[0] else 0.0,
         "fng": fng_val,
         "fng_class": fng_class,
         "fng_prev": fng_prev,
@@ -211,7 +212,7 @@ def build_telegram_text(m, etf):
     lines = []
     lines.append("📊 <b>Nedēļas kripto tirgus pārskats</b>")
     lines.append("")
-    lines.append(f"💰 TOTAL cap: {fmt_usd(m['total_cap'])}")
+    lines.append(f"💰 TOTAL cap: {fmt_usd(m['total_cap'])} {arrow(m['total_cap_7d'])} {fmt_pct(m['total_cap_7d'])} (7d)")
     lines.append(f"🟠 BTC: ${m['btc_price']:,.0f} {arrow(m['btc_7d'])} {fmt_pct(m['btc_7d'])} (7d)")
     lines.append(f"🔵 ETH: ${m['eth_price']:,.0f} {arrow(m['eth_7d'])} {fmt_pct(m['eth_7d'])} (7d)")
     # Dominance ar izmaiņu pret iepriekšējo nedēļu
