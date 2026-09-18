@@ -213,8 +213,8 @@ def build_telegram_text(m, etf):
     lines.append("📊 <b>Nedēļas kripto tirgus pārskats</b>")
     lines.append("")
     lines.append(f"💰 TOTAL cap: {fmt_usd(m['total_cap'])} {arrow(m['total_cap_7d'])} {fmt_pct(m['total_cap_7d'])} (7d)")
-    lines.append(f"🟠 BTC: ${m['btc_price']:,.0f} {arrow(m['btc_7d'])} {fmt_pct(m['btc_7d'])} (7d)")
-    lines.append(f"🔵 ETH: ${m['eth_price']:,.0f} {arrow(m['eth_7d'])} {fmt_pct(m['eth_7d'])} (7d)")
+    lines.append(f"#BTC: ${m['btc_price']:,.0f} {arrow(m['btc_7d'])} {fmt_pct(m['btc_7d'])} (7d)")
+    lines.append(f"#ETH: ${m['eth_price']:,.0f} {arrow(m['eth_7d'])} {fmt_pct(m['eth_7d'])} (7d)")
     # Dominance ar izmaiņu pret iepriekšējo nedēļu
     dom_chg = (m['btc_dom'] - m['btc_dom_prev']) if m.get('btc_dom_prev') is not None else None
     if dom_chg is not None:
@@ -231,7 +231,7 @@ def build_telegram_text(m, etf):
             if e and e["this_week"] is not None:
                 chg = e["this_week"] - e["prev_week"]
                 lines.append(
-                    f"{'🟠' if sym=='BTC' else '🔵'} {sym} ETF: {fmt_usd(e['this_week'])} "
+                    f"{'#BTC' if sym=='BTC' else '#ETH'} ETF: {fmt_usd(e['this_week'])} "
                     f"{arrow(chg)} {fmt_usd(chg)} vs iepr. nedēļa"
                 )
     lines.append("")
@@ -240,16 +240,26 @@ def build_telegram_text(m, etf):
 
 
 def build_x_post(m, etf):
-    """X post ≤280 rakstzīmes, EN, mracrypto.co."""
+    """X post ≤280 rakstzīmes, EN, mracrypto.co. Pievieno izmaiņas, ja iekļaujas."""
+    # izmaiņas pret iepriekšējo nedēļu
+    fng_chg = m['fng'] - m['fng_prev']
+    dom_chg = (m['btc_dom'] - m['btc_dom_prev']) if m.get('btc_dom_prev') is not None else None
+
+    def dom_sub():
+        return f" {arrow(dom_chg)} ({dom_chg:+.1f}pp)" if dom_chg is not None else ""
+
     lines = []
     lines.append("📊 Weekly Crypto Update:")
     lines.append(f"• TOTAL cap: {fmt_usd(m['total_cap'])} {arrow(m['btc_7d'])} ({fmt_pct(m['btc_7d'])})")
-    lines.append(f"• 🟠 BTC: ${m['btc_price']:,.0f} {arrow(m['btc_7d'])} ({fmt_pct(m['btc_7d'])})")
-    lines.append(f"• 🔵 ETH: ${m['eth_price']:,.0f} {arrow(m['eth_7d'])} ({fmt_pct(m['eth_7d'])})")
-    lines.append(f"• BTC Dom: {m['btc_dom']:.1f}% {arrow(m['btc_dom'] - 50)}")
-    lines.append(f"• Fear & Greed: {m['fng']} {arrow(m['fng'] - 50)}")
+    lines.append(f"• #BTC: ${m['btc_price']:,.0f} {arrow(m['btc_7d'])} ({fmt_pct(m['btc_7d'])})")
+    lines.append(f"• #ETH: ${m['eth_price']:,.0f} {arrow(m['eth_7d'])} ({fmt_pct(m['eth_7d'])})")
+    lines.append(f"• BTC Dom: {m['btc_dom']:.1f}%{dom_sub()}")
+    lines.append(f"• Fear & Greed: {m['fng']} {arrow(fng_chg)} ({fng_chg:+.0f} pts)")
     if etf and etf.get("BTC") and etf["BTC"]["this_week"] is not None:
         lines.append(f"• BTC ETF (7d): {fmt_usd(etf['BTC']['this_week'])} {arrow(etf['BTC']['this_week'])}")
+    if etf and etf.get("ETH") and etf["ETH"]["this_week"] is not None:
+        eth_chg = etf["ETH"]["this_week"] - etf["ETH"]["prev_week"]
+        lines.append(f"• ETH ETF (7d): {fmt_usd(etf['ETH']['this_week'])} {arrow(eth_chg)}")
     lines.append("")
     lines.append(X_LINK)
     return "\n".join(lines)
