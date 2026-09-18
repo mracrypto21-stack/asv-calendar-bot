@@ -299,20 +299,24 @@ def send_telegram_text(token, text):
         sys.exit(1)
 
 
-def send_x_post(text):
-    """Nosūta X postu caur xurl. Ja xurl nav autentificēts, izlaiž ar brīdinājumu."""
+def send_x_post(text, image_path=None):
+    """Nosūta X postu caur composio_x_post.py (composio MCP, no VPS)."""
     if not text:
         return
     try:
-        r = subprocess.run(["xurl", "post", text], capture_output=True, text=True, timeout=60)
-        print("xurl exit:", r.returncode)
-        print("xurl stdout:", r.stdout[:500])
+        cmd = ["/root/.hermes/venv/bin/python3", "/root/scripts/composio_x_post.py", text]
+        if image_path:
+            cmd.append(image_path)
+        r = subprocess.run(cmd, capture_output=True, text=True, timeout=400)
+        print("composio_x_post exit:", r.returncode)
+        if r.stdout:
+            print(r.stdout[-800:])
         if r.stderr:
-            print("xurl stderr:", r.stderr[:500])
+            print("stderr:", r.stderr[-500:])
         if r.returncode != 0:
-            print("⚠️ X post neizdevās (xurl), bet Telegram ziņa jau nosūtīta.")
+            print("⚠️ X post neizdevās (composio), bet Telegram ziņa jau nosūtīta.")
     except FileNotFoundError:
-        print("⚠️ xurl nav uzstādīts — X post izlaists.")
+        print("⚠️ composio_x_post.py nav atrasts — X post izlaists.")
     except Exception as e:
         print(f"⚠️ X post kļūda: {e}")
 
@@ -367,8 +371,9 @@ def main():
     # 2. Teksts
     send_telegram_text(token, text)
 
-    # 3. X post
-    send_x_post(x_post)
+    # 3. X post (ar bildi, ja izveidota)
+    x_img = img_path if os.path.exists(img_path) else None
+    send_x_post(x_post, x_img)
 
 
 if __name__ == "__main__":
