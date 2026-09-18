@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
-"""Kripto nedēļas infografika — kie.ai fons + HTML→PNG (glassmorphism).
+"""Kripto nedēļas infografika — kie.ai fons + HTML→PNG (glassmorphism, neon).
 
 Datus (skaitļus/tekstu) uzliek HTML→PNG renderētājs, jo AI modeļi slikti
 renderē ciparus. kie.ai ģenerē TIKAI fonu (bez teksta/cipariem).
+
+Dizains: ļoti krāsaina tumša tēma, spilgti gradienti, mirdzoši stikla
+logrīki (glassmorphism), 3D dziļums, neonas notis. 7 rādītāji simetriskā
+režģī (4 augšā + 3 apakšā) — bez tukšiem laukumiem. NAV avotu rindiņas.
 
 Lietošana (jāiet ar /usr/bin/python3 — ir playwright):
     python3 krypto_dashboard_html.py <out.png> '<json_data>'
@@ -47,14 +51,15 @@ def check_credits(api_key):
 
 
 def generate_background(out_path, api_key):
-    """Ģenerē premium tumšu fonu (bez teksta) caur kie.ai Seedream 5.0 Lite."""
+    """Ģenerē košu neonu fonu (bez teksta) caur kie.ai Seedream 5.0 Lite."""
     prompt = (
-        "Premium crypto market dashboard background, deep near-black premium "
-        "gradient (dark charcoal center fading to deep indigo edges), "
-        "subtle glowing neon candlestick charts in red and green scattered in "
-        "the background depth, faint holographic rising line chart with a "
-        "bullish arrow, soft ambient glow, premium fintech aesthetic, "
-        "glassmorphism friendly, "
+        "Vibrant premium crypto market dashboard background, rich deep dark "
+        "gradient with vivid neon color washes (electric purple, magenta, "
+        "cyan, teal and gold glowing aurora blending across a near-black "
+        "base), luminous glowing candlestick charts in bright green and red, "
+        "holographic rising line chart with a glowing arrow, floating neon "
+        "glass orbs and bokeh light particles, dramatic volumetric glow, "
+        "high-end fintech aesthetic, colorful and energetic, "
         "no text, no numbers, no letters, no words, no labels, "
         "empty background for data overlay"
     )
@@ -141,12 +146,16 @@ def arrow(v):
 def build_html(d, bg_data_uri=None):
     if bg_data_uri:
         bg_css = (
-            "linear-gradient(rgba(7,19,35,0.60), rgba(7,19,35,0.60)), "
+            "linear-gradient(rgba(10,8,30,0.55), rgba(10,8,30,0.55)), "
             f"url('data:image/png;base64,{bg_data_uri}') center/cover no-repeat, "
-            "radial-gradient(1200px 520px at 50% -10%, #12314f, #091a2e 60%, #06111f)"
+            "radial-gradient(1400px 600px at 50% -10%, #2a1a5e, #120b33 55%, #07041a)"
         )
     else:
-        bg_css = "radial-gradient(1200px 520px at 50% -10%, #12314f, #091a2e 60%, #06111f)"
+        bg_css = (
+            "radial-gradient(1400px 600px at 50% -10%, #2a1a5e, #120b33 55%, #07041a), "
+            "radial-gradient(900px 500px at 85% 90%, #0a3a4a, transparent 60%), "
+            "radial-gradient(900px 500px at 10% 80%, #3a0a4a, transparent 60%)"
+        )
 
     btc_7d = d.get("btc_7d", 0)
     eth_7d = d.get("eth_7d", 0)
@@ -162,35 +171,51 @@ def build_html(d, bg_data_uri=None):
     btc_etf_chg = (btc_etf.get("this_week", 0) - btc_etf.get("prev_week", 0)) if btc_etf_this is not None else None
     eth_etf_chg = (eth_etf.get("this_week", 0) - eth_etf.get("prev_week", 0)) if eth_etf_this is not None else None
 
-    def card(title, value, sub, up):
-        color = "#2fbf71" if up else "#ef6c6c"
-        emoji = "🟢" if up else "🔴"
+    # Katram logrīkam sava neonas akcenta krāsa (gradients + mirdzums)
+    def card(title, value, sub, up, accent, glow):
+        color = "#00ff9d" if up else "#ff3b5c"
+        arrowc = "▲" if up else "▼"
         return f"""
-        <div class="card">
-          <div class="card-title">{title}</div>
+        <div class="card" style="--accent:{accent}; --glow:{glow};">
+          <div class="card-top">
+            <div class="card-title">{title}</div>
+            <div class="card-icon" style="background:linear-gradient(135deg,{accent},#ffffff22);"></div>
+          </div>
           <div class="card-value">{value}</div>
-          <div class="card-sub" style="color:{color}">{emoji} {sub}</div>
+          <div class="card-sub" style="color:{color}; text-shadow:0 0 12px {color}88;">
+            <span class="arr">{arrowc}</span> {sub}
+          </div>
         </div>"""
 
-    cards = []
-    cards.append(card("Market Capitalization", fmt_usd(d.get("total_cap", 0)),
-                      f"vs previous week {fmt_pct(btc_7d)}", btc_7d >= 0))
-    cards.append(card("Bitcoin (BTC) Price", f"${d.get('btc_price', 0):,.0f}",
-                      f"vs previous week {fmt_pct(btc_7d)}", btc_7d >= 0))
-    cards.append(card("Ethereum (ETH) Price", f"${d.get('eth_price', 0):,.0f}",
-                      f"vs previous week {fmt_pct(eth_7d)}", eth_7d >= 0))
-    cards.append(card("Bitcoin Dominance", f"{btc_dom:.1f}%",
-                      "share of total market", btc_dom >= 50))
-    cards.append(card("Fear & Greed Index", f"{fng}",
-                      f"{fng_class}", fng >= 50))
-    if btc_etf_this is not None:
-        cards.append(card("Bitcoin ETF Weekly Inflow", fmt_usd(btc_etf_this),
-                          f"vs previous week {fmt_usd(btc_etf_chg)}", (btc_etf_chg or 0) >= 0))
-    if eth_etf_this is not None:
-        cards.append(card("Ethereum ETF Weekly Inflow", fmt_usd(eth_etf_this),
-                          f"vs previous week {fmt_usd(eth_etf_chg)}", (eth_etf_chg or 0) >= 0))
+    cards_top = []
+    cards_top.append(card("Market Capitalization", fmt_usd(d.get("total_cap", 0)),
+                          f"vs previous week {fmt_pct(btc_7d)}", btc_7d >= 0,
+                          "#00d4ff", "rgba(0,212,255,0.55)"))
+    cards_top.append(card("Bitcoin (BTC) Price", f"${d.get('btc_price', 0):,.0f}",
+                          f"vs previous week {fmt_pct(btc_7d)}", btc_7d >= 0,
+                          "#ffb300", "rgba(255,179,0,0.55)"))
+    cards_top.append(card("Ethereum (ETH) Price", f"${d.get('eth_price', 0):,.0f}",
+                          f"vs previous week {fmt_pct(eth_7d)}", eth_7d >= 0,
+                          "#b44dff", "rgba(180,77,255,0.55)"))
+    cards_top.append(card("Bitcoin Dominance", f"{btc_dom:.1f}%",
+                          "share of total market", btc_dom >= 50,
+                          "#00e5a0", "rgba(0,229,160,0.55)"))
 
-    cards_html = "\n".join(cards)
+    cards_bot = []
+    cards_bot.append(card("Fear & Greed Index", f"{fng}",
+                          f"{fng_class}", fng >= 50,
+                          "#ff5ce1", "rgba(255,92,225,0.55)"))
+    if btc_etf_this is not None:
+        cards_bot.append(card("Bitcoin ETF Weekly Inflow", fmt_usd(btc_etf_this),
+                              f"vs previous week {fmt_usd(btc_etf_chg)}", (btc_etf_chg or 0) >= 0,
+                              "#ff8a3d", "rgba(255,138,61,0.55)"))
+    if eth_etf_this is not None:
+        cards_bot.append(card("Ethereum ETF Weekly Inflow", fmt_usd(eth_etf_this),
+                              f"vs previous week {fmt_usd(eth_etf_chg)}", (eth_etf_chg or 0) >= 0,
+                              "#7a5cff", "rgba(122,92,255,0.55)"))
+
+    top_html = "\n".join(cards_top)
+    bot_html = "\n".join(cards_bot)
 
     html = f"""<!DOCTYPE html>
 <html><head><meta charset="utf-8">
@@ -200,41 +225,64 @@ def build_html(d, bg_data_uri=None):
     width:1180px; height:1180px;
     background:{bg_css};
     font-family:-apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
-    color:#eef4ff; padding:48px 44px;
+    color:#f4f6ff; padding:46px 44px 40px;
     display:flex; flex-direction:column;
   }}
   .header {{
     display:flex; align-items:center; justify-content:space-between;
-    margin-bottom:34px;
+    margin-bottom:30px;
   }}
   .title {{
-    font-size:44px; font-weight:800; letter-spacing:0.5px;
-    background:linear-gradient(90deg,#ffffff,#9fd0ff);
+    font-size:46px; font-weight:900; letter-spacing:1px;
+    background:linear-gradient(90deg,#ffffff 0%,#9fd0ff 40%,#c9a7ff 100%);
     -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent;
+    filter:drop-shadow(0 0 18px rgba(120,160,255,0.45));
   }}
-  .subtitle {{ font-size:20px; color:#9fb6d4; margin-top:6px; }}
+  .subtitle {{ font-size:21px; color:#b9c8e8; margin-top:8px; letter-spacing:0.3px; }}
   .badge {{
-    background:rgba(255,255,255,0.10); border:1px solid rgba(255,255,255,0.18);
-    border-radius:14px; padding:10px 18px; font-size:18px; color:#cfe3ff;
-    backdrop-filter:blur(8px);
+    background:linear-gradient(135deg,rgba(255,255,255,0.16),rgba(255,255,255,0.05));
+    border:1px solid rgba(255,255,255,0.28);
+    border-radius:16px; padding:12px 20px; font-size:18px; font-weight:700;
+    color:#eaf2ff; backdrop-filter:blur(10px);
+    box-shadow:0 0 24px rgba(120,160,255,0.25), inset 0 1px 0 rgba(255,255,255,0.25);
   }}
-  .grid {{
-    display:grid; grid-template-columns:repeat(3,1fr); gap:22px; flex:1;
-  }}
+  .row-top {{ display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }}
+    .row-bot {{ display:flex; gap:20px; margin-top:20px; }}
+    .row-bot .card {{ flex:1; }}
   .card {{
-    background:rgba(255,255,255,0.07);
-    border:1px solid rgba(255,255,255,0.16);
-    border-radius:22px; padding:26px 24px;
-    backdrop-filter:blur(14px);
-    box-shadow:0 8px 32px rgba(0,0,0,0.35);
+    position:relative;
+    background:linear-gradient(160deg, rgba(255,255,255,0.14), rgba(255,255,255,0.04));
+    border:1px solid rgba(255,255,255,0.22);
+    border-radius:24px; padding:24px 22px;
+    backdrop-filter:blur(16px);
+    box-shadow:
+      0 10px 40px rgba(0,0,0,0.45),
+      0 0 0 1px rgba(255,255,255,0.06) inset,
+      0 0 34px var(--glow);
     display:flex; flex-direction:column; justify-content:space-between;
+    min-height:250px;
+    overflow:hidden;
   }}
-  .card-title {{ font-size:19px; color:#a9c2e4; font-weight:600; }}
-  .card-value {{ font-size:40px; font-weight:800; margin-top:10px; }}
-  .card-sub {{ font-size:18px; font-weight:600; margin-top:8px; }}
-  .footer {{
-    margin-top:26px; text-align:center; font-size:17px; color:#8fa8c8;
+  .card::before {{
+    content:""; position:absolute; top:-40%; left:-20%; width:140%; height:80%;
+    background:linear-gradient(120deg, transparent 30%, rgba(255,255,255,0.10) 50%, transparent 70%);
+    transform:rotate(8deg); pointer-events:none;
   }}
+  .card::after {{
+    content:""; position:absolute; inset:0; border-radius:24px;
+    background:radial-gradient(120px 80px at 20% 0%, var(--glow), transparent 70%);
+    opacity:0.35; pointer-events:none;
+  }}
+  .card-top {{ display:flex; align-items:flex-start; justify-content:space-between; }}
+  .card-title {{ font-size:18px; color:#dbe7ff; font-weight:700; line-height:1.25; }}
+  .card-icon {{
+    width:34px; height:34px; border-radius:10px; flex-shrink:0;
+    box-shadow:0 0 16px var(--glow), inset 0 1px 0 rgba(255,255,255,0.4);
+  }}
+  .card-value {{ font-size:42px; font-weight:900; margin-top:14px; letter-spacing:0.5px;
+    text-shadow:0 0 22px var(--glow); }}
+  .card-sub {{ font-size:17px; font-weight:700; margin-top:12px; }}
+  .arr {{ font-size:15px; }}
 </style></head>
 <body>
   <div class="header">
@@ -244,10 +292,12 @@ def build_html(d, bg_data_uri=None):
     </div>
     <div class="badge">Weekly Report</div>
   </div>
-  <div class="grid">
-    {cards_html}
+  <div class="row-top">
+    {top_html}
   </div>
-  <div class="footer">Data: CoinGecko · SoSoValue · alternative.me</div>
+  <div class="row-bot">
+    {bot_html}
+  </div>
 </body></html>"""
     return html
 
