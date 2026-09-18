@@ -234,7 +234,7 @@ def build_telegram_text(m, etf):
                     f"{arrow(chg)} {fmt_usd(chg)} vs iepr. nedēļa"
                 )
     lines.append("")
-    lines.append(f"🔗 <a href=\"https://kriptonr1.xyz/\">Kripto nr. 1 ekosistēma</a>")
+    lines.append(f"🌐 <a href=\"https://kriptonr1.xyz/\">Kripto nr. 1 ekosistēma</a>")
     return "\n".join(lines)
 
 
