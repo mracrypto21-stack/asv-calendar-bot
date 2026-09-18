@@ -213,8 +213,8 @@ def build_telegram_text(m, etf):
     lines.append("📊 <b>Nedēļas kripto tirgus pārskats</b>")
     lines.append("")
     lines.append(f"💰 TOTAL cap: {fmt_usd(m['total_cap'])} {arrow(m['total_cap_7d'])} {fmt_pct(m['total_cap_7d'])} (7d)")
-    lines.append(f"#BTC: ${m['btc_price']:,.0f} {arrow(m['btc_7d'])} {fmt_pct(m['btc_7d'])} (7d)")
-    lines.append(f"#ETH: ${m['eth_price']:,.0f} {arrow(m['eth_7d'])} {fmt_pct(m['eth_7d'])} (7d)")
+    lines.append(f"🟠 BTC: ${m['btc_price']:,.0f} {arrow(m['btc_7d'])} {fmt_pct(m['btc_7d'])} (7d)")
+    lines.append(f"🔵 ETH: ${m['eth_price']:,.0f} {arrow(m['eth_7d'])} {fmt_pct(m['eth_7d'])} (7d)")
     # Dominance ar izmaiņu pret iepriekšējo nedēļu
     dom_chg = (m['btc_dom'] - m['btc_dom_prev']) if m.get('btc_dom_prev') is not None else None
     if dom_chg is not None:
@@ -231,7 +231,7 @@ def build_telegram_text(m, etf):
             if e and e["this_week"] is not None:
                 chg = e["this_week"] - e["prev_week"]
                 lines.append(
-                    f"{'#BTC' if sym=='BTC' else '#ETH'} ETF: {fmt_usd(e['this_week'])} "
+                    f"{'🟠' if sym=='BTC' else '🔵'} {sym} ETF: {fmt_usd(e['this_week'])} "
                     f"{arrow(chg)} {fmt_usd(chg)} vs iepr. nedēļa"
                 )
     lines.append("")
