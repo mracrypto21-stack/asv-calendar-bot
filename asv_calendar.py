@@ -43,7 +43,7 @@ DESCRIPTIONS = {
     "Flash Manufacturing PMI": "Rūpniecības sektora provizoriskais aktivitātes vērtējums. Virs 50 nozīmē ekspansiju, zem 50 — kontrakciju.",
     "Flash Services PMI": "Pakalpojumu sektora provizoriskais aktivitātes vērtējums. Virs 50 nozīmē ekspansiju, zem 50 — kontrakciju.",
     "Factory Orders": "Rūpniecības pasūtījumu apjoma izmaiņas, kas raksturo pieprasījumu ražošanas sektorā. Pieaugums liecina par ekonomikas izaugsmi un var stiprināt dolāru.",
-    "Durable Goods Orders": "Ilgtermiņa preču pasūtījumi. Būtisks pieaugums norāda uz stabilu pieprasījumu un investoru pārliecību par ekonomikas virzību.",
+    "Durable Goods Orders": "Ilgtermiņa preču pasūtījumi. Atspoguļo uzņēmumu pieprasījumu un investīciju noskaņojumu ekonomikā.",
     "Industrial Production": "Rūpniecības produkcijas apjoma izmaiņas. Pieaugums liecina par ražošanas sektora izaugsmi un ekonomikas tempu.",
 
     # Nodarbinātība un darba tirgus
@@ -52,7 +52,7 @@ DESCRIPTIONS = {
     "ADP Weekly Employment Change": "Privātā sektora iknedēļas nodarbinātības izmaiņas. Rāda darba tirgus tempu nedēļas griezumā un palīdz prognozēt oficiālos datus.",
     "Unemployment Rate": "ASV bezdarba līmenis. Zemāks par gaidīto liecina par stipru darba tirgu un var mudināt Fed saglabāt augstākas procentu likmes.",
     "Unemployment Claims": "Iknedēļas jauno bezdarbnieku pieteikumu skaits. Pieteikumi zem aptuveni 250 000 nozīmē stabilu darba tirgu, savukārt straujš pieaugums var liecināt par tā vājināšanos.",
-    "Initial Jobless Claims": "Iknedēļas jauno bezdarbnieku pieteikumu skaits. Pieteikumi zem aptuveni 250 000 nozīmē stabilu darba tirgu, savukārt straujš pieaugums var liecināt par tā vājināšanos.",
+    "Initial Jobless Claims": "Iknedēļas jauno bezdarbnieku pieteikumu skaits. Rādītājs, kas uzrauga ASV darba tirgus stabilitāti un iespējamo vājināšanos — pieteikumi zem aptuveni 250 000 liecina par stabilu tirgu.",
     "Continuing Jobless Claims": "Ilgstoši bezdarbnieku pieteikumi. Pieaugums liecina, ka bezdarbniekiem arvien grūtāk atrast darbu.",
 
     # Mājokļu tirgus
@@ -83,7 +83,7 @@ DESCRIPTIONS = {
     "Retail Sales": "Mazumtirdzniecības apjomu izmaiņas — galvenais patērētāju tēriņu rādītājs. Stiprs pieaugums liecina par ekonomikas izaugsmi un var stiprināt dolāru.",
     "Core Retail Sales": "Mazumtirdzniecība bez automašīnām un degvielas. Rāda stabilāku patērētāju tēriņu tendenci un kopējo patēriņa veselību.",
     "Consumer Confidence": "Patērētāju konfidences indekss. Augstāka pārliecība parasti nozīmē lielākus tēriņus un ekonomikas atbalstu; indekss ietekmē arī tirgus noskaņojumu.",
-    "Michigan Consumer Sentiment": "Mičiganas universitātes patērētāju noskaņojuma indekss. Rāda, kā mājsaimniecības vērtē ekonomiku un savus tēriņus.",
+    "Michigan Consumer Sentiment": "Patērētāju noskaņojuma galējais indekss, kas raksturo mājsaimniecību gatavību tērēt un ekonomikas uztveri.",
     "Consumer Credit": "Patēriņa kredītu apjoma izmaiņas. Pieaugums norāda, ka patērētāji ir gatavi tērēt ar aizņemto līdzekļu palīdzību.",
     "NFIB Small Business Index": "Mazo uzņēmumu optimismu indekss. Rāda mazo biznesu noskaņojumu — svarīgu darba vietu radītāju ASV ekonomikā.",
     "GDP": "Iekšzemes kopprodukta izmaiņas — visaptverošākais ekonomikas izaugsmes rādītājs. Spēcīgs pieaugums stiprina dolāru un samazina Fed stimulu nepieciešamību.",
@@ -166,20 +166,23 @@ CANONICAL_FAMILIES = [
     ("permits", "Building Permits", False, ["building permits"]),
     ("pending_home", "Pending Home Sales m/m", False, ["pending home sales"]),
     ("conf", "Consumer Confidence", False, ["consumer confidence"]),
-    ("sentiment", "Michigan Consumer Sentiment", False, ["michigan"]),
+    ("sentiment", "U. of Michigan Consumer Sentiment", False,
+     ["michigan", "uom", "consumer sentiment"]),
+    ("pmi", "S&P Global / Flash PMI", False, ["pmi"]),
     ("capacity", "Capacity Utilization Rate", False, ["capacity utilization"]),
     ("indprod", "Industrial Production m/m", False, ["industrial production"]),
     ("dur", "Durable Goods Orders", False, ["durable goods"]),
     ("factory", "Factory Orders m/m", False, ["factory orders"]),
-    ("fed_speaks", "Fed amatpersonu runas (speaks)", False,
-     ["speaks", "fed chair", "powell"]),
+    # Fed amatpersonu runas (FOMC Member X Speaks) — NAV iekļautas atlases saimēs.
+    # Atsevišķas Fed amatpersonu uzstāšanās nav monetārās politikas paziņojums un
+    # netiek rādītas kā atsevišķi notikumi (lietotāja prasība 2026-09-20).
 ]
 
 # Prioritātes (augstāks = pirmāks) pa saimju atslēgām; headline vienmēr pirmā.
 FAMILY_PRIORITY = {
     "fomc": 100, "ikp": 78, "darba_tirgus_nfp": 78, "bezdarbs": 74,
     "inflacija_core": 76, "inflacija": 72, "pce": 70, "ppi_core": 66, "ppi": 62,
-    "retail": 58, "capacity": 56, "indprod": 56, "dur": 54, "factory": 52,
+    "pmi": 60, "retail": 58, "capacity": 56, "indprod": 56, "dur": 54, "factory": 52,
     "housing_starts": 52, "permits": 52, "pending_home": 50, "conf": 50,
     "sentiment": 50, "rūpn_empire": 46, "rūpn_philly": 46, "jobless": 50,
 }
@@ -248,8 +251,9 @@ def get_event_description(event_name):
                 "ietekmē dolāra kursu un inflācijas gaidas. Pamata rādītājs (Core) neietver "
                 "auto tirdzniecību.")
     if name in ("jobless claims", "initial jobless claims") or "claims" in name:
-        return ("Iknedēļas jauno bezdarbnieku pieteikumi. Rādītājs zem aptuveni 250 000 "
-                "liecina par darba tirgus stabilitāti.")
+        return ("Iknedēļas jauno bezdarbnieku pieteikumu skaits. Rādītājs, kas uzrauga "
+                "ASV darba tirgus stabilitāti un iespējamo vājināšanos — pieteikumi zem "
+                "aptuveni 250 000 liecina par stabilu tirgu.")
     if "empire state" in name:
         return "Ņujorkas reģiona rūpniecības aktivitātes indekss. Vērtība virs 0 norāda uz izaugsmi, zem 0 — uz lejupslīdi."
     if "philly" in name:
@@ -267,10 +271,12 @@ def get_event_description(event_name):
         return "Noslēgto mājokļu pirkuma līgumu skaits — aktivitāte nekustamā īpašuma tirgū."
     if "retail" in name or "sales" in name:
         return "Pārdošanas apjomu izmaiņas. Stiprs pieaugums liecina par patērētāju tēriņiem un ekonomikas izaugsmi."
-    if "consumer confidence" in name or "michigan" in name:
-        return "Patērētāju noskaņojuma indekss — augstāks līmenis nozīmē lielākus tēriņus un ekonomiskāku aktivitāti."
+    if "consumer confidence" in name or "michigan" in name or "uom" in name or "consumer sentiment" in name:
+        return ("Patērētāju noskaņojuma galējais indekss, kas raksturo mājsaimniecību "
+                "gatavību tērēt un ekonomikas uztveri.")
     if "durable goods" in name:
-        return "Ilgtermiņa preču pasūtījumi — pieprasījuma un investoru pārliecības rādītājs."
+        return ("Ilgtermiņa preču pasūtījumi. Atspoguļo uzņēmumu pieprasījumu un "
+                "investīciju noskaņojumu ekonomikā.")
     if "factory orders" in name:
         return "Rūpniecības pasūtījumu izmaiņas — pieprasījuma rādītājs ražošanas sektorā."
     if "non-farm payrolls" in name or "nonfarm payrolls" in name:
@@ -286,7 +292,8 @@ def get_event_description(event_name):
     if "cpi" in name or "inflation" in name or "price index" in name:
         return "Inflācijas rādītājs. Augstāka inflācija par prognozēm var pamudināt Fed celt procentu likmes un stiprina dolāru."
     if "pmi" in name:
-        return "Biznesa un ražošanas sektora aktivitātes indekss. Vērtība virs 50 nozīmē izaugsmi, zem 50 — sarukumu."
+        return ("Svarīgi ekonomikas veselības rādītāji, kas parāda biznesa aktivitātes "
+                "un inflācijas spiediena dinamiku. Vērtība virs 50 nozīmē izaugsmi, zem 50 — sarukumu.")
     if "housing" in name or "home" in name or "mortgage" in name or "permits" in name or "building" in name:
         return "Mājokļu vai būvniecības tirgus rādītājs. Pieaugums norāda uz aktivitāti nekustamā īpašuma sektorā."
     if "inventories" in name or "stock" in name:
@@ -341,6 +348,20 @@ def build_message(selected_events, next_monday):
                     lines.append(f"{bullet}{ev}")
         lines.append("")
 
+    # 💡 Piezīme — tikai tad, ja šajā nedēļā NAV Fed likmju lēmuma (FOMC headline).
+    # Ja galvenā Fed sanāksme jau noslēdzās iepriekšējā nedēļā, tirgi vairāk reaģēs
+    # uz konkrētiem datiem un atsevišķu Fed amatpersonu komentāriem.
+    has_fomc = any(
+        "likmju lēmums" in ev.lower() or "fomc" in ev.lower()
+        for evs in selected_events.values() for ev in evs
+    )
+    if not has_fomc:
+        lines.append("💡 Piezīme: Tā kā galvenā Fed procentu likmju sanāksme un lēmums "
+                     "jau noslēdzās iepriekšējā nedēļā, tirgi šonedēļ vairāk reaģēs uz "
+                     "konkrētiem inflācijas un aktivitātes datiem, kā arī atsevišķu "
+                     "Fed amatpersonu komentāriem.")
+        lines.append("")
+
     lines.append('🌐 <a href="https://kriptonr1.xyz">Kripto Nr.1 ekosistēma</a>')
     return "\n".join(lines)
 
@@ -357,7 +378,7 @@ def self_check(text):
     for i in range(len(words) - 1):
         if words[i] == words[i + 1] and words[i] not in ['un', 'ar', 'no', 'par', 'uz', 'ja', 'kas']:
             errors.append(f"Vārdu atkārtojums: {words[i]}")
-    for artifact in ['influences', ' the ', ' and ', ' of ', ' to ', ' is ', ' for ']:
+    for artifact in ['influences', ' the ', ' and ', ' to ', ' is ', ' for ']:
         if artifact in text.lower():
             errors.append(f"Tenglish fragments: {artifact}")
     return errors
@@ -447,7 +468,7 @@ def main():
 
         if os.environ.get("SEND_TELEGRAM", "0") == "1":
             # 1) Dashboard bilde — tikai rādītāji, kas atbilst nedēļas notikumiem
-            send_image = True
+            send_image = False  # bilde izslegta (2026-09-13) — suta tikai tekstu, lidz HTML bilde apstiprinata
             # Pirms bildes pārbauda kie.ai kredītus — ja beigušies, sūta tikai tekstu
             try:
                 import kie_bg
