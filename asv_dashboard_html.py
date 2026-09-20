@@ -148,10 +148,11 @@ def build_html(keys, bg_data_uri=None):
     elif len(keys) <= 6:
         cols = 3
     else:
-        cols = 4
+        cols = 6
     # Feder gauge kartīte nedefinē kolonnu izkārtojumu — viss vienotā režģī
-    for key in keys:
+    for idx, key in enumerate(keys):
         card = REGISTRY[key]
+        span = 2 if (len(keys) == 7 and idx < 3) else (3 if (len(keys) == 7 and idx >= 3) else 1)
         try:
             pairs = _series(card["id"], card["calc"])
             last = pairs[-1][1]
@@ -183,7 +184,7 @@ def build_html(keys, bg_data_uri=None):
             vcol = "#2fbf71" if last >= 0 else "#ef6c6c"
 
         cards_html.append(f"""
-        <div class="card">
+        <div class="card" style="grid-column:span {span};">
           <div class="card-head">
             <span class="icon" style="background:{accent}22;color:{accent}">{card['icon']}</span>
             <span class="title">{card['title']}</span>
@@ -211,16 +212,18 @@ def build_html(keys, bg_data_uri=None):
   .header .sub {{ color:#8fa8bf; font-size:13px; margin-top:3px; }}
   .grid {{ display:grid; grid-template-columns:repeat({cols},1fr); gap:16px; margin-top:18px; flex:1 1 auto; grid-auto-rows:1fr; }}
   .card {{
-    background: linear-gradient(180deg,#1b3a5a,#13293f); border:1px solid #2b4c6e; border-radius:15px;
-    padding:20px 20px 16px; display:flex; flex-direction:column; justify-content:space-between;
+    background: rgba(20,40,63,0.35); border:1px solid rgba(255,255,255,0.18); border-radius:20px;
+    padding:22px 22px 18px; display:flex; flex-direction:column; justify-content:space-between;
+    backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
   }}
   .card-head {{ display:flex; align-items:center; gap:10px; }}
-  .icon {{ width:34px;height:34px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:18px; }}
-  .title {{ font-size:14px; font-weight:700; }}
-  .value {{ font-size:42px; font-weight:800; line-height:1.1; }}
-  .meta {{ font-size:11.5px; color:#8fa8bf; }}
+  .icon {{ width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px; }}
+  .title {{ font-size:17px; font-weight:700; }}
+  .value {{ font-size:52px; font-weight:800; line-height:1.1; }}
+  .meta {{ font-size:13px; color:#8fa8bf; }}
   .per {{ color:#c7d6e4; }}
-  .chart {{ width:100%; height:90px; }}
+  .chart {{ width:100%; height:110px; }}
   .gauge {{ height:18px; border-radius:8px; background:#27405a; position:relative; }}
   .gauge-bg {{ height:100%; border-radius:8px; position:relative; }}
   .gauge-arrow {{ position:absolute; top:-5px; width:3px;height:28px; background:#f5f1e6; transform:translateX(-50%); }}
