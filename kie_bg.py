@@ -58,14 +58,14 @@ def build_prompt(seed):
         "premium fintech aesthetic", "minimal futuristic", "sleek modern",
         "cyberpunk elegance", "high-end trading terminal",
     ]
-    accent = ["cyan", "gold", "teal", "violet", "silver"]
+    accent = ["gold", "amber", "warm gold", "golden"]
     light = rng.choice(lighting)
     st = rng.choice(style)
     acc = rng.choice(accent)
 
     # --- dažādas fona tēmas (scenes) ---
-    bull_colors = ["neon blue", "cyan", "electric blue", "ice blue"]
-    bear_colors = ["neon red", "magenta", "hot pink", "crimson"]
+    bull_colors = ["gold", "amber", "warm gold", "golden"]
+    bear_colors = ["deep red", "crimson", "dark red"]
     bull_styles = [
         "stylized holographic wireframe bull charging upward",
         "minimal neon outline of a bull, glowing",
@@ -122,7 +122,7 @@ def build_prompt(seed):
 
     prompt = (
         "Premium financial trading dashboard background, deep near-black premium "
-        "gradient (dark charcoal center fading to deep indigo edges), "
+        "gradient (pure black center fading to very dark charcoal edges), "
         f"{scene}, {light}, {st}, subtle {acc} glow, "
         "no text, no numbers, no letters, no words, no labels, "
         "empty background for data overlay"
