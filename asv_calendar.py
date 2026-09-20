@@ -348,20 +348,6 @@ def build_message(selected_events, next_monday):
                     lines.append(f"{bullet}{ev}")
         lines.append("")
 
-    # 💡 Piezīme — tikai tad, ja šajā nedēļā NAV Fed likmju lēmuma (FOMC headline).
-    # Ja galvenā Fed sanāksme jau noslēdzās iepriekšējā nedēļā, tirgi vairāk reaģēs
-    # uz konkrētiem datiem un atsevišķu Fed amatpersonu komentāriem.
-    has_fomc = any(
-        "likmju lēmums" in ev.lower() or "fomc" in ev.lower()
-        for evs in selected_events.values() for ev in evs
-    )
-    if not has_fomc:
-        lines.append("💡 Piezīme: Tā kā galvenā Fed procentu likmju sanāksme un lēmums "
-                     "jau noslēdzās iepriekšējā nedēļā, tirgi šonedēļ vairāk reaģēs uz "
-                     "konkrētiem inflācijas un aktivitātes datiem, kā arī atsevišķu "
-                     "Fed amatpersonu komentāriem.")
-        lines.append("")
-
     lines.append('🌐 <a href="https://kriptonr1.xyz">Kripto Nr.1 ekosistēma</a>')
     return "\n".join(lines)
 
