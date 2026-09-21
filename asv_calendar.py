@@ -454,7 +454,7 @@ def main():
 
         if os.environ.get("SEND_TELEGRAM", "0") == "1":
             # 1) Dashboard bilde — tikai rādītāji, kas atbilst nedēļas notikumiem
-            send_image = False  # bilde izslegta (2026-09-13) — suta tikai tekstu, lidz HTML bilde apstiprinata
+            send_image = True  # bilde ieslegta (2026-09-20) — KIE.AI fons + HTML dati apstiprinati
             # Pirms bildes pārbauda kie.ai kredītus — ja beigušies, sūta tikai tekstu
             try:
                 import kie_bg
