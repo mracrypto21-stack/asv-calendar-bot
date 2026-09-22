@@ -24,17 +24,17 @@ import requests
 FRED_BASE = "https://fred.stlouisfed.org/graph/fredgraph.csv?id={sid}&cosd=2022-01-01"
 
 REGISTRY = {
-    "gdp":      dict(id="GDPC1",    title="IKP izaugsme",     unit="% g/g", calc="yoy_q",  icon="📈"),
-    "bezdarbs": dict(id="UNRATE",   title="Bezdarba līmenis", unit="%",      calc="value", icon="👥"),
-    "cpi":      dict(id="CPIAUCSL", title="Inflācija (CPI)",   unit="% g/g",  calc="yoy",   icon="🏷️"),
-    "corecpi":  dict(id="CPILFESL", title="Pamata inflācija",  unit="% g/g",  calc="yoy",   icon="🏷️"),
-    "ppi":      dict(id="PPIFIS",   title="Ražotāju cenas",    unit="% g/g",  calc="yoy",   icon="🏭"),
-    "coreppi":  dict(id="PPIFES",   title="Pamata PPI",        unit="% g/g",  calc="yoy",   icon="🏭"),
-    "retail":   dict(id="RSAFS",    title="Mazumtirdzniecība", unit="% m/m",  calc="mom",   icon="🛒"),
-    "ind":      dict(id="INDPRO",   title="Rūpniecības ražošana", unit="% m/m", calc="mom", icon="⚙️"),
-    "sent":     dict(id="UMCSENT",  title="Patērētāju noskaņojums", unit="ind.", calc="value", icon="💬"),
-    "housing":  dict(id="HOUST",    title="Jaunbūves",         unit="tūkst.", calc="value_th", icon="🏠"),
-    "gauge":    dict(id="DFEDTARU", title="Fed bāzes likme",   unit="%",      calc="gauge", icon="🏛️"),
+    "gdp":      dict(id="GDPC1",    title="GDP Growth",       unit="% y/y", calc="yoy_q",  icon="📈"),
+    "bezdarbs": dict(id="UNRATE",   title="Unemployment Rate", unit="%",     calc="value", icon="👥"),
+    "cpi":      dict(id="CPIAUCSL", title="Inflation (CPI)",   unit="% y/y",  calc="yoy",   icon="🏷️"),
+    "corecpi":  dict(id="CPILFESL", title="Core Inflation",    unit="% y/y",  calc="yoy",   icon="🏷️"),
+    "ppi":      dict(id="PPIFIS",   title="Producer Prices",   unit="% y/y",  calc="yoy",   icon="🏭"),
+    "coreppi":  dict(id="PPIFES",   title="Core PPI",          unit="% y/y",  calc="yoy",   icon="🏭"),
+    "retail":   dict(id="RSAFS",    title="Retail Sales",      unit="% m/m",  calc="mom",   icon="🛒"),
+    "ind":      dict(id="INDPRO",   title="Industrial Production", unit="% m/m", calc="mom", icon="⚙️"),
+    "sent":     dict(id="UMCSENT",  title="Consumer Sentiment", unit="idx.", calc="value", icon="💬"),
+    "housing":  dict(id="HOUST",    title="Housing Starts",    unit="thous.", calc="value_th", icon="🏠"),
+    "gauge":    dict(id="DFEDTARU", title="Fed Funds Rate",    unit="%",      calc="gauge", icon="🏛️"),
 }
 
 # krāsu akcents katrai kartei (zelta/amber variants)
@@ -195,7 +195,7 @@ def build_html(keys, bg_data_uri=None):
         </div>""")
 
     return f"""<!DOCTYPE html>
-<html lang="lv">
+<html lang="en">
 <head>
 <meta charset="utf-8">
 <style>
@@ -233,14 +233,14 @@ def build_html(keys, bg_data_uri=None):
 <body>
   <div class="header">
     <div>
-      <h1>ASV EKONOMISKIE DATI</h1>
-      <div class="sub">Aktuālie rādītāji &mdash; <span id="today"></span></div>
+      <h1>US ECONOMIC DATA</h1>
+      <div class="sub">Current indicators &mdash; <span id="today"></span></div>
     </div>
   </div>
   <div class="grid">
     {''.join(cards_html)}
   </div>
-<script>document.getElementById('today').textContent=new Date().toLocaleDateString('lv-LV');</script>
+<script>document.getElementById('today').textContent=new Date().toLocaleDateString('en-US');</script>
 </body>
 </html>"""
 
