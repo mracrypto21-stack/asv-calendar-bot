@@ -149,6 +149,19 @@ def build_html(keys, bg_data_uri=None):
         cols = 3
     else:
         cols = 6
+    # Dinamiskā izmēru skala: mazāk kartīšu → lielāks teksts un grafiki,
+    # lai bilde neizskatītos plika (lietotāja prasība 2026-09-21).
+    n = len(keys)
+    if n <= 2:
+        scale = 1.6
+    elif n == 3:
+        scale = 1.35
+    elif n == 4:
+        scale = 1.25
+    elif n == 5:
+        scale = 1.12
+    else:
+        scale = 1.0
     # Feder gauge kartīte nedefinē kolonnu izkārtojumu — viss vienotā režģī
     for idx, key in enumerate(keys):
         card = REGISTRY[key]
@@ -206,6 +219,7 @@ def build_html(keys, bg_data_uri=None):
     background: {bg_css};
     font-family: -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
     color:#f5f1e6; padding: 28px 32px 22px;
+    --scale: {scale};
   }}
   .header {{ display:flex; align-items:center; justify-content:space-between; }}
   .header h1 {{ font-size:30px; font-weight:800; letter-spacing:.5px; }}
@@ -218,15 +232,15 @@ def build_html(keys, bg_data_uri=None):
     box-shadow: 0 8px 24px rgba(0,0,0,0.35);
   }}
   .card-head {{ display:flex; align-items:center; gap:10px; }}
-  .icon {{ width:40px;height:40px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:22px; }}
-  .title {{ font-size:17px; font-weight:700; }}
-  .value {{ font-size:52px; font-weight:800; line-height:1.1; }}
-  .meta {{ font-size:13px; color:#8fa8bf; }}
+  .icon {{ width:calc(40px*var(--scale));height:calc(40px*var(--scale));border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:calc(22px*var(--scale)); }}
+  .title {{ font-size:calc(17px*var(--scale)); font-weight:700; }}
+  .value {{ font-size:calc(52px*var(--scale)); font-weight:800; line-height:1.1; }}
+  .meta {{ font-size:calc(13px*var(--scale)); color:#8fa8bf; }}
   .per {{ color:#c7d6e4; }}
-  .chart {{ width:100%; height:110px; }}
-  .gauge {{ height:18px; border-radius:8px; background:#27405a; position:relative; }}
+  .chart {{ width:100%; height:calc(110px*var(--scale)); }}
+  .gauge {{ height:calc(18px*var(--scale)); border-radius:8px; background:#27405a; position:relative; }}
   .gauge-bg {{ height:100%; border-radius:8px; position:relative; }}
-  .gauge-arrow {{ position:absolute; top:-5px; width:3px;height:28px; background:#f5f1e6; transform:translateX(-50%); }}
+  .gauge-arrow {{ position:absolute; top:calc(-5px*var(--scale)); width:calc(3px*var(--scale));height:calc(28px*var(--scale)); background:#f5f1e6; transform:translateX(-50%); }}
   .footer {{ margin-top:16px; color:#f0c860; font-weight:700; font-size:13px; }}
 </style>
 </head>
