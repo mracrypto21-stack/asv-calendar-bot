@@ -3,8 +3,9 @@
 
 Ģenerē tikai FONU (bez teksta/cipariem) caur kie.ai Seedream 5.0 Lite —
 dziļš gandrīz melns gradients, neona svečturi, hologrāfisks vērsis (pa kreisi)
-un lācis (pa labi). Katru nedēļu fons nedaudz atšķiras (seed no ISO nedēļas
-numura → reproducējams, bet mainīgs).
+un lācis (pa labi). Katru dienu fons atšķiras (seed = dienu skaits kopš epochas
+→ garantēti mainīgs starp nedēļām, atšķirībā no agrākā ISO nedēļas +1, kas
+kļūdaini deva gandrīz identiskas bildes).
 
 Datus (skaitļus/tekstu) uzliek HTML→PNG renderētājs (asv_dashboard_html.py),
 jo AI modeļi slikti renderē ciparus. Šis modulis tikai sagatavo fonu.
@@ -41,12 +42,13 @@ def load_api_key():
     raise RuntimeError("KIE_AI_API_KEY nav atrasts (env vai .env)")
 
 
-def build_prompt(seed):
-    """Uz seed balstīts, katru nedēļu nedaudz atšķirīgs fona prompt.
+def build_prompt(seed, theme_idx):
+    """Uz seed + theme_idx balstīts fona prompt.
 
-    Katru nedēļu izvēlas citu SCENE tēmu (vērsis/lācis, kāpjošs tirgus grafiks,
-    svečturi, abstrakti finanšu elementi, pilsētas siluets u.c.), lai fons
-    laika gaitā atsvaidzinātos un nebūtu monotonisks.
+    theme_idx rotē cauri BŪTISKI atšķirīgām tēmām (katru nedēļu cita), lai
+    fons garantēti mainītos — atšķirībā no agrākā seed-only pieejas, kur
+    KIE.AI ar gandrīz vienādu promptu (sveces + bullish bulta) ģenerēja
+    gandrīz vienādu fonu (lietotāja sūdzība 2026-09-21).
     """
     rng = random.Random(seed)
 
@@ -58,67 +60,55 @@ def build_prompt(seed):
         "premium fintech aesthetic", "minimal futuristic", "sleek modern",
         "cyberpunk elegance", "high-end trading terminal",
     ]
-    accent = ["gold", "amber", "warm gold", "golden"]
+    accent = ["gold", "amber", "warm gold", "golden", "rose gold", "bronze"]
     light = rng.choice(lighting)
     st = rng.choice(style)
     acc = rng.choice(accent)
 
-    # --- dažādas fona tēmas (scenes) ---
-    bull_colors = ["gold", "amber", "warm gold", "golden"]
-    bear_colors = ["deep red", "crimson", "dark red"]
-    bull_styles = [
-        "stylized holographic wireframe bull charging upward",
-        "minimal neon outline of a bull, glowing",
-        "sleek holographic bull silhouette with neon wireframe",
-        "futuristic wireframe bull in a dynamic charging pose",
+    # --- BŪTISKI atšķirīgas fona tēmas (bez obligātajām svecēm katrā) ---
+    # Katrai tēmai sapludināta vairākkrāsu palete, kas rotē pa nedēļām
+    # (theme_idx) — daudzveidīgs, interessants un bez apnikušā zilā kā
+    # dominējošā (lietotājs 2026-09-21).
+    themes = [
+        # 0 — vērsis/lācis, zelta/sarkanā + dzintara
+        lambda: (
+            "a single stylized holographic wireframe bull charging upward, body "
+            "glowing warm gold blending into amber, on the left, and a matching "
+            "holographic wireframe bear prowling, deep crimson blending into "
+            "burgundy, on the right, sparse dark background"
+        ),
+        # 1 — pilsētas siluets, dzintara/oranžā + rozā/rožu zelta
+        lambda: (
+            "a sleek futuristic financial district skyline silhouette at night, "
+            "glowing amber, orange and rose-gold windows, warm neon gradients "
+            "along the towers, faint chart lines drawn through a warm dusk sky"
+        ),
+        # 2 — abstraktas 3D joslas, hroma + rozā/violets/ciāna
+        lambda: (
+            "abstract glossy 3D bar chart columns rising from the bottom, polished "
+            "chrome and glass with a rich gradient glow blending magenta, violet "
+            "and a hint of teal, minimal and premium, deep charcoal background"
+        ),
+        # 3 — globālā karte, zaļa/emerald + zelta tīkla gaisma
+        lambda: (
+            "a dark world map with glowing emerald, teal and golden connection "
+            "arcs between financial hubs, particles of green and gold light, "
+            "global trading network at night"
+        ),
+        # 4 — dziļš kosmoss, violets/rozā + zelta (bez zilā)
+        lambda: (
+            "deep space nebula in rich violet and magenta blending into rose-gold, "
+            "faint glowing planet rings, scattered stars, subtle comet streaks of "
+            "gold and pink, premium finance meets cosmos"
+        ),
+        # 5 — minimāla līnija, dzeltens + zaļš + platīns
+        lambda: (
+            "a minimal clean upward-trending neon line with soft arrowhead in "
+            "pale yellow blending into mint green, subtle geometric circles and "
+            "polygons floating in warm charcoal, elegant fintech minimalism"
+        ),
     ]
-    bear_styles = [
-        "stylized holographic wireframe bear walking downward",
-        "minimal neon outline of a bear, glowing",
-        "sleek holographic bear silhouette with neon wireframe",
-        "futuristic wireframe bear in a prowling pose",
-    ]
-    candlestick = [
-        "faint semi-transparent neon candlestick charts in red and green scattered in the background depth",
-        "subtle glowing candlestick patterns in red and green rising through the background",
-        "dim neon candlestick columns in red and green fading into the dark background",
-        "softly glowing candlestick charts in red and green layered in the background",
-    ]
-    rising_chart = [
-        "a large glowing neon line chart trending sharply upward with a rising arrow, bullish market momentum",
-        "a holographic rising stock market graph with an upward arrow and green glow",
-        "a sweeping neon uptrend line chart climbing across the background with a bullish arrow",
-    ]
-    falling_chart = [
-        "a large glowing neon line chart trending downward with a falling arrow, bearish market momentum",
-        "a holographic declining stock market graph with a downward arrow and red glow",
-        "a sweeping neon downtrend line chart dropping across the background with a bearish arrow",
-    ]
-    abstract_fin = [
-        "abstract floating holographic coins and candlestick charts in neon tones",
-        "floating neon dollar symbols and rising bar charts in the background depth",
-        "abstract geometric financial shapes, coins and chart lines in neon glow",
-    ]
-    skyline = [
-        "a futuristic financial district skyline silhouette with glowing windows and neon accents",
-        "a dark city skyline with neon-lit skyscrapers and subtle chart lines in the sky",
-        "a sleek financial city skyline at night with neon towers and a rising graph",
-    ]
-
-    scenes = [
-        # (svars, prompt_fragments)
-        (3, lambda: (
-            f"{rng.choice(bull_styles)} in {rng.choice(bull_colors)} on the left side, "
-            f"{rng.choice(bear_styles)} in {rng.choice(bear_colors)} on the right side, "
-            f"{rng.choice(candlestick)}"
-        )),
-        (2, lambda: f"{rng.choice(rising_chart)}, {rng.choice(candlestick)}"),
-        (1, lambda: f"{rng.choice(falling_chart)}, {rng.choice(candlestick)}"),
-        (2, lambda: f"{rng.choice(abstract_fin)}, {rng.choice(candlestick)}"),
-        (1, lambda: f"{rng.choice(skyline)}, {rng.choice(candlestick)}"),
-    ]
-    weights = [w for w, _ in scenes]
-    scene = rng.choices(scenes, weights=weights, k=1)[0][1]()
+    scene = themes[theme_idx % len(themes)]()
 
     prompt = (
         "Premium financial trading dashboard background, deep near-black premium "
@@ -202,11 +192,17 @@ def download(url, out_path):
 def generate_background(out_path, seed=None):
     """Ģenerē premium fonu caur kie.ai un saglabā to out_path."""
     if seed is None:
-        iso = datetime.now().isocalendar()
-        seed = iso[0] * 100 + iso[1]  # piem. 2026*100 + 38
+        # dienu skaits kopš epochas → katru dienu MAINĪGS seed, lai pat vienas
+        # tēmas ietvaros fons nedaudz atšķirtos.
+        seed = int(time.time() / 86400)  # piem. 20700 → pavisam cits fons weekly
+    # theme_idx rotē cauri BŪTISKI atšķirīgām tēmām pa ISO nedēļām — katru
+    # nedēļu garantēti cita fona tēma (ne tikai seed +1, kas KIE.AI deva
+    # gandrīz identiskas bildes — lietotāja sūdzība 2026-09-21).
+    iso = datetime.now().isocalendar()
+    theme_idx = iso[1]  # ISO nedēļas numurs (garantē +1 katru nedēļu)
     api_key = load_api_key()
-    prompt = build_prompt(seed)
-    print(f"🎨 kie.ai fons (seed={seed})")
+    prompt = build_prompt(seed, theme_idx)
+    print(f"🎨 kie.ai fons (seed={seed}, theme#{theme_idx})")
     task_id = create_task(prompt, api_key)
     url = poll_task(task_id, api_key)
     download(url, out_path)
