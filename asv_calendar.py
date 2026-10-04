@@ -2,6 +2,7 @@ import os
 import re
 import json
 import urllib.request
+import time
 import ssl
 from datetime import datetime, timedelta
 import requests
@@ -95,10 +96,30 @@ DESCRIPTIONS = {
 
 def fetch_forexfactory_calendar():
     url = "https://r.jina.ai/https://www.forexfactory.com/calendar"
-    req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
     ctx = ssl._create_unverified_context()
-    r = urllib.request.urlopen(req, context=ctx, timeout=30)
-    return r.read().decode("utf-8", errors="replace")
+    # jina.ai abuse-alleviation bloks (HTTP 403) ir īslaicīgs (~40 min).
+    # Retry ar gaidīšanu: mēģini līdz ~55 min, līdz bloks nokrīt, tad turpini.
+    last_err = None
+    for attempt in range(11):
+        try:
+            req = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
+            r = urllib.request.urlopen(req, context=ctx, timeout=30)
+            return r.read().decode("utf-8", errors="replace")
+        except Exception as e:
+            last_err = e
+            code = getattr(e, 'code', None)
+            if code == 403:
+                if attempt < 10:
+                    print(f'[fetch] 403 abuse-bloks, mēģinu vēlreiz pēc 300s ({attempt+1}/10)...')
+                    time.sleep(300)
+                    continue
+            else:
+                # ne-403 kļūda: gaidīt mazāk, bet arī retry
+                if attempt < 10:
+                    print(f'[fetch] kļūda {e!r}, mēģinu vēlreiz pēc 30s ({attempt+1}/10)...')
+                    time.sleep(30)
+                    continue
+    raise last_err
 
 def parse_us_events(text):
     lines = text.split('\n')

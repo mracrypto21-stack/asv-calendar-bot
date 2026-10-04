@@ -152,11 +152,11 @@ def upload_media(key, s3key):
     return d.get("id") or d.get("media_id")
 
 
-def create_post(key, text, media_id):
-    data = multi_execute(key, "TWITTER_CREATION_OF_A_POST", {
-        "text": text,
-        "media_media_ids": [media_id],
-    })
+def create_post(key, text, media_id=None):
+    args = {"text": text}
+    if media_id:
+        args["media_media_ids"] = [media_id]
+    data = multi_execute(key, "TWITTER_CREATION_OF_A_POST", args)
     d = data.get("data", data)
     return d.get("id")
 
