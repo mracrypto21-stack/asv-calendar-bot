@@ -436,6 +436,35 @@ def send_photo(image_path, caption=None):
         print(f'Kļūda sūtot bildi: {result}')
         exit(1)
 
+def pick_key_event(selected_events, next_monday):
+    """Nedēļas svarīgākais notikums bildes kartītei 'Key event' -> (datums, EN nosaukums) vai None.
+    Headline (FOMC) pirmais, tad pēc FAMILY_PRIORITY; vienādos — agrākā diena."""
+    EN_SHORT = {"fomc": "Fed rate decision (FOMC)"}
+    best = None
+    for dk, evs in selected_events.items():
+        parts = dk.split()
+        if not parts:
+            continue
+        idx = next((i for i, (_, ab) in enumerate(DATE_MAP) if ab == parts[0]), None)
+        if idx is None:
+            continue
+        for ev in evs:
+            fam = _match_family(ev)
+            if not fam and "fomc" in ev.lower():
+                fam = ("fomc", ev, True)   # display nosaukums ir LV teksts
+            if not fam:
+                continue
+            key_, disp, hl = fam
+            score = (1 if hl else 0, FAMILY_PRIORITY.get(key_, 10), -idx)
+            if best is None or score > best[0]:
+                name = EN_SHORT.get(key_, disp)
+                best = (score, idx, name)
+    if best is None:
+        return None
+    d = next_monday + timedelta(days=best[1])
+    return (d.strftime("%a, %-d %b"), best[2])
+
+
 def main():
     today = datetime.now()
     days_until_monday = (7 - today.weekday()) % 7
@@ -476,17 +505,7 @@ def main():
         if os.environ.get("SEND_TELEGRAM", "0") == "1":
             # 1) Dashboard bilde — tikai rādītāji, kas atbilst nedēļas notikumiem
             send_image = True  # bilde ieslegta (2026-09-20) — KIE.AI fons + HTML dati apstiprinati
-            # Pirms bildes pārbauda kie.ai kredītus — ja beigušies, sūta tikai tekstu
-            try:
-                import kie_bg
-                credits = kie_bg.check_credits()
-                if credits < 6:
-                    print(f"⚠️ kie.ai kredīti nepietiekami ({credits}) — sūtu tikai ziņu bez bildes")
-                    send_image = False
-                else:
-                    print(f"ℹ️ kie.ai kredīti: {credits}")
-            except Exception as ce:
-                print(f"ℹ️ Nevar pārbaudīt kie.ai kredītus ({ce}) — mēģinu ģenerēt")
+            # (2026-11-08) Bilde vairs neizmanto KIE fonu -> kredītu pārbaude nav vajadzīga.
             if send_image and HAS_INFOGRAPHIC:
                 try:
                     ind_keys = asv_dashboard.select_indicators(selected)
@@ -502,8 +521,12 @@ def main():
                         html_script = os.path.join(
                             os.path.dirname(os.path.abspath(__file__)), "asv_dashboard_html.py")
                         cmd = ["/usr/bin/python3", html_script, img_path] + ind_keys
+                        env = dict(os.environ)
+                        ke_ev = pick_key_event(selected, next_monday)
+                        if ke_ev:
+                            env["ASV_KEY_EVENT"] = json.dumps({"date": ke_ev[0], "name": ke_ev[1]}, ensure_ascii=False)
                         try:
-                            subprocess.run(cmd, check=True, timeout=300)
+                            subprocess.run(cmd, check=True, timeout=300, env=env)
                             print(f"✅ Premium dashboard (kie.ai + HTML) ģenerēts: {img_path} ({ind_keys})")
                         except Exception as ke:
                             print(f"⚠️ HTML dashboard neizdevās, atkāpjas uz matplotlib: {ke}")

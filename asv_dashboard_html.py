@@ -13,6 +13,7 @@ import os
 import sys
 import csv
 import io
+import json
 import time
 import datetime as dt
 
@@ -124,7 +125,23 @@ def build_html(data):
 
     c1 = stat_card("Unemployment Rate", "bezdarbs", "vs previous month", signed=False)
     c2 = stat_card("Inflation (CPI)", "cpi", "year over year · vs prev. month")
-    c3 = stat_card("GDP Growth", "gdp", "year over year · vs prev. quarter")
+    ev = None
+    try:
+        ev = json.loads(os.environ.get("ASV_KEY_EVENT", "")) if os.environ.get("ASV_KEY_EVENT") else None
+    except Exception:
+        ev = None
+    if ev and ev.get("name"):
+        c3 = f"""
+    <div class="card" style="width:320px;height:230px;">
+      <div class="ctitle">Key Event</div>
+      <div class="grow" style="gap:10px;">
+        <div style="font-size:42px; font-weight:800; line-height:1; color:{ui.GOLD};">{ev.get("date", "")}</div>
+        <div style="font-size:26px; font-weight:800; line-height:1.15;">{ev["name"]}</div>
+        <div class="muted">Most important release this week</div>
+      </div>
+    </div>"""
+    else:
+        c3 = stat_card("GDP Growth", "gdp", "year over year · vs prev. quarter")
 
     # plats CPI grafiks
     cpi = data.get("cpi", [])[-16:]
